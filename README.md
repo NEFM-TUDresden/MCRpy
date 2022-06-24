@@ -19,18 +19,21 @@ MCRpy can be used
 
 ## Installation
 
-Simple install: To quickly get started, just install via pip using 
+### Simple install
+To quickly get started, just install via pip using 
 
 `pip install mcrpy`
 
-Editable install: Extensibility is a central advantage of MCRpy. If you want to define your own descriptors and use them for reconstruction, you need an editable install (note the dot at the end). 
+### Editable install
+Extensibility is a central advantage of MCRpy. If you want to define your own descriptors and use them for reconstruction, you need an editable install (note the dot at the end). 
 
 `git clone https://github.com/NEFM-TUDresden/MCRpy.git ; pip install -e . `
 
-For HPC: On HPC clusters, it can be challenging to pip-install a Python package and at the same time keep access to pre-compiled modules like tensorflow. If the tensorflow installation has not been compiled for the correct hardware, the MCRpy performance can be quite underwhelming. A simple solution is to 
+### For HPC
+On HPC clusters, it can be challenging to pip-install a Python package and at the same time keep access to pre-compiled modules like tensorflow. If the tensorflow installation has not been compiled for the correct hardware, the MCRpy performance can be quite underwhelming. A simple solution is to 
 1. copy the MCRpy source code into the desired workspace
 2. load the modules that satisfy the dependencies
-3. add MCRpy to the PYTHONPATH
+3. add MCRpy to the `$PYTHONPATH`
 
 ## Dependencies
 
@@ -55,8 +58,6 @@ The code should in principle be platform-independent, but we are testing mainly 
 
 ## Getting started
 
-Drei Beispiele aus Paper und ein paar mehr
-
 Characterize a microstructure to get the descriptors: characterize.py 
 - MS needs to be a numpy array stored with np.save() as a npy array
 - Descriptors can be given as list
@@ -78,10 +79,26 @@ View a microstructure or the convergence data from the reconstruction: view.py
 - click on blue dots to display corresponding MS
 <img src="images/example_view_ms.png" height="400" alt="Example for viewing MS"> </img>
 
+### MCRpy graphical user interface
+Thanks to the great package [Gooey](https://github.com/chriskiehl/Gooey), MCRpy can be accessed by a simple GUI. This helps to get started and allows MCR to non-programmers.
 
+### MCRpy command line interface
+The most efficient way to use MCRpy is probably by the command line interface, allowing for automation and HPC application. The same outcome as in the GUI example can be obtained by simply typing
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy --descriptor_types Correlations Variation --descriptor_weights 1 100 --add_dimension 64  --no_multiphase --limit_to 8`
 
-## Example gallery
+You can automate this in loops very simply.
+```bash
+python characterize.py ms_slice.npy --limit_to 8 --descriptor_types Correlations Variation
+for i in {1..9} 
+do
+    python reconstruct.py --descriptor_filename results/ms_slice_characterization.pickle \
+        --extent_x 64 --extent_y 64 --extent_z 64 --limit_to 8 --information ${i} \ 
+        --descriptor_types Correlations Variation --descriptor_weights 1 100
+done
+```
 
+### MCRpy as a Python package
+You can import MCRpy as a regular Python package to obtain direct access to the underlying objects
 
 ```python
 import mcrpy
@@ -119,6 +136,8 @@ for i, interpolated_descriptor in enumerate(d_inter):
     mcrpy.save_microstructure(f'ms_interpolated_{i}.npy', smoothed_ms)
 ```
 
+## Example gallery
+
 Simple 2D match using MGCorrelations only
 
 `python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
@@ -147,6 +166,27 @@ View convergence data
 
 `python view.py results/convergence_data.pickle`
 
+## Extending MCRpy by plugins
+Besides normal code contributionby merge request - which is always welcome - you can extend MCRpy very simply by writing plugins for microstructure descriptors, optimizers and loss function. The currently available descriptors, optimizers and losses are also plugins, so you can read this code to see how it's done. As a simple example, here is the descriptor plugin for the volume fraction:
+```python
+import tensorflow as tf
+from mcrpy.src import descriptor_factory
+from mcrpy.descriptors.Descriptor import Descriptor
+
+class VolumeFractions(Descriptor):
+    is_differentiable = True
+
+    @staticmethod
+    def make_singlephase_descriptor(**kwargs) -> callable:
+
+        @tf.function
+        def compute_descriptor(indicator_function: tf.Tensor) -> tf.Tensor:
+            return tf.math.reduce_mean(indicator_function)
+        return compute_descriptor
+
+def register() -> None:
+    descriptor_factory.register("VolumeFractions", VolumeFractions)
+```
 
 ## Information
 This code has been written by [Paul Seibert](https://www.researchgate.net/profile/Paul-Seibert) and [Alexander Rassloff](https://www.researchgate.net/profile/Alexander-Rassloff) in the lab of [Markus Kaestner](https://www.researchgate.net/profile/Markus-Kaestner) at the [institute of solid mechanics](https://tu-dresden.de/ing/maschinenwesen/ifkm/nefm), TU Dresden, Germany.
