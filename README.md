@@ -1,4 +1,5 @@
-# MCRpy: Microstructure Characterization and Reconstruction in Python
+# MCRpy 
+## Microstructure Characterization and Reconstruction in Python
 
 Microstructure characterization and reconstruction (MCR) is an emerging field of computational materials engineering that allows to
 
@@ -120,47 +121,42 @@ for i, interpolated_descriptor in enumerate(d_inter):
 
 Simple 2D match using MGCorrelations only
 
-    `python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
+`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
 
 2D match using MGCorrelations, GramMatrices and TotalVariation
 
-    `python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations GramMatrices TotalVariation --descriptor_weights 1.0 0.001 0.0001 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations GramMatrices TotalVariation --descriptor_weights 1.0 0.001 0.0001 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
 
 3D match using MGCorrelations only
 
-    `python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50 --add_dimension 64`
+`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50 --add_dimension 64`
 
 characterize only using MGCorrelations, GramMatrices and TotalVariation
 
-    `python characterize.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --descriptor_types GramMatrices MGCorrelations TotalVariation --data_folder results`
+`python characterize.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --descriptor_types GramMatrices MGCorrelations TotalVariation --data_folder results`
 
 2D reconstruct only using MGCorrelations only
 
-    `python reconstruct.py --descriptor_filename results/checkerboard_ms_64x64_characterisation.pickle --descriptor_types MGCorrelations --descriptor_weights 1.0 --data_folder results --extent_x 64 --extent_y 64`
+`python reconstruct.py --descriptor_filename results/checkerboard_ms_64x64_characterisation.pickle --descriptor_types MGCorrelations --descriptor_weights 1.0 --data_folder results --extent_x 64 --extent_y 64`
 
 View a microstructure
 
-    `python view.py microstructures/checkerboard_ms_64x64.npy`
+`python view.py microstructures/checkerboard_ms_64x64.npy`
 
 View convergence data
 
-    `python view.py results/convergence_data.pickle`
+`python view.py results/convergence_data.pickle`
 
 
 ## Information
-TODO das hier alles links
-
-This code has been written by:
-* Paul Seibert, TU Dresden, Institute of solid mechanics
-In cooperation with:
-* Alexander Rassloff, TU Dresden, Institute of solid mechanics
-* Marreddy Ambati, TU Dresden, Institute of solid mechanics
-* Markus Kaestner, TU Dresden, Institute of solid mechanics
+This code has been written by [Paul Seibert](https://www.researchgate.net/profile/Paul-Seibert) and [Alexander Rassloff](https://www.researchgate.net/profile/Alexander-Rassloff) in the lab of [Markus Kaestner](https://www.researchgate.net/profile/Markus-Kaestner) at the [institute of solid mechanics](https://tu-dresden.de/ing/maschinenwesen/ifkm/nefm), TU Dresden, Germany.
 
 The following papers describe this work in different ways:
-* Central idea and the differentiable extension of n-point correlations: Seibert et al., Reconstructing random heterogeneous media through differentiable optimization, COMMAT, 2021
-* Extension to 3D: Seibert et al., Descriptor-based reconstruction of three-dimensional microstructures through gradient-based optimization, Acta Materialia, 2022
+* Central idea and the differentiable extension of n-point correlations: [Seibert et al., Reconstructing random heterogeneous media through differentiable optimization, COMMAT, 2021](https://www.sciencedirect.com/science/article/abs/pii/S0927025621001804)
+* Extension to 3D: [Seibert et al., Descriptor-based reconstruction of three-dimensional microstructures through gradient-based optimization, Acta Materialia, 2022](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520)
 * MCRpy as a library: Seibert et al., Microstructure Characterization and Reconstruction in Python - MCRpy, ArXiv, 2022
+
+All works are also available on as pre-print on ArXiv
 
 Please cite at least one of these sources if you use MCRpy in your work.
 
