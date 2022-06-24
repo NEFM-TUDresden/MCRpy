@@ -8,7 +8,7 @@ Microstructure characterization and reconstruction (MCR) is an emerging field of
 
 MCRpy provides a simple way to characterize a microstructure with a set of descriptors and to reconstruct new microstructures **given these descriptors**.
 
-A key feature of MCRpy is its modularity and extensibility: You can combine **any** descriptors in **any** loss function and use **any** optimizer to solve the emerging optimization problem. More information on this can be found :ref:`here<Information>`.
+A key feature of MCRpy is its modularity and extensibility: You can combine **any** descriptors in **any** loss function and use **any** optimizer to solve the emerging optimization problem.
 
 MCRpy can be used
 1. as a regular program with graphical user interface (GUI), intended for non-programmers and as an easy introduction to MCR,
@@ -57,7 +57,7 @@ The code should in principle be platform-independent, but we are testing mainly 
 Drei Beispiele aus Paper und ein paar mehr
 
 Characterize a microstructure to get the descriptors: characterize.py 
-- MS needs to be a numpy array stored with npy.save() as a npy array
+- MS needs to be a numpy array stored with np.save() as a npy array
 - Descriptors can be given as list
 - For MGCorrelations, the limit_to parameters trade off accuracy vs compute
 
@@ -68,7 +68,7 @@ Reconstruct a microstructure given the descriptors: characterize.py
 
 
 Do characterization and reconstruction in one step: match.py
-- Remarks see characcterize and reconstruct
+- Remarks see characterize and reconstruct
 
 View a microstructure or the convergence data from the reconstruction: view.py
 - r to toggle rounded/unrounded values
@@ -83,26 +83,39 @@ View a microstructure or the convergence data from the reconstruction: view.py
 
 
 ```python
-   # import required model type
-   from gmshModel.Model import RandomInclusionRVE as RVE
+import mcrpy
 
-   # initialize new RVE
-   myRVE=RVE(size=[20,20,20], inclusionType="Sphere", inclusionSets=[1, 200])
+# define settings
+limit_to = 8
+descriptor_types = ['Correlations', 'Variation']
+descriptor_weights = [1.0, 10.0]
+characterization_settings = mcrpy.CharacterizationSettings(descriptor_types=descriptor_types, 
+    limit_to=limit_to)
+reconstruction_settings = mcrpy.ReconstructionSettings(descriptor_types=descriptor_types, 
+    descriptor_weights=descriptor_weights, limit_to=limit_to, use_multigrid_reconstruction=True)
 
-   # create Gmsh model
-   myRVE.createGmshModel()
+# load microstructures
+ms_from = mcrpy.load('microstructures/ms_slice_isotropic.npy')
+ms_to = mcrpy.load('microstructures/ms_slice_elongated.npy')
 
-   # generate mesh
-   myRVE.createMesh()
+# characterize microstructures
+descriptor_isotropic = mcrpy.characterize(ms_from, characterization_settings)
+descriptor_elongated = mcrpy.characterize(ms_to, characterization_settings)
 
-   # save resulting mesh to vtk
-   myRVE.saveMesh("myRVE.vtk")
+# merge descriptors
+descriptor_from = mcrpy.merge([descriptor_isotropic])
+descriptor_to = mcrpy.merge([descriptor_elongated, descriptor_isotropic])
 
-   # visualize result
-   myRVE.visualizeMesh()
+# interpolate in descriptor space
+d_inter = mcrpy.interpolate(descriptor_from, descriptor_to, 5)
 
-   # finalize Gmsh-Python-API
-   myRVE.close()
+# reconstruct from interpolated descriptors and save results
+for i, interpolated_descriptor in enumerate(d_inter):
+    convergence_data, ms = mcrpy.reconstruct(interpolated_descriptor, (128, 128, 128), 
+        settings=reconstruction_settings)
+    mcrpy.view(convergence_data)
+    smoothed_ms = mcrpy.smooth(ms)
+    mcrpy.save_microstructure(f'ms_interpolated_{i}.npy', smoothed_ms)
 ```
 
 Simple 2D match using MGCorrelations only
@@ -148,8 +161,9 @@ The following papers describe this work in different ways:
 * Central idea and the differentiable extension of n-point correlations: Seibert et al., Reconstructing random heterogeneous media through differentiable optimization, COMMAT, 2021
 * Extension to 3D: Seibert et al., Descriptor-based reconstruction of three-dimensional microstructures through gradient-based optimization, Acta Materialia, 2022
 * MCRpy as a library: Seibert et al., Microstructure Characterization and Reconstruction in Python - MCRpy, ArXiv, 2022
+
 Please cite at least one of these sources if you use MCRpy in your work.
 
 ## License
-MCRpy is published under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0)._
+MCRpy is published under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
 
