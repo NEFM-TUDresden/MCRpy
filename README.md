@@ -81,12 +81,24 @@ View a microstructure or the convergence data from the reconstruction: view.py
 
 ### MCRpy graphical user interface
 Thanks to the great package [Gooey](https://github.com/chriskiehl/Gooey), MCRpy can be accessed by a simple GUI. This helps to get started and allows MCR to non-programmers.
+<img src="images/mcrpy_gui.png" height="400" alt="MCRpy GUI"> </img>
+The left-hand sind shows a list of all possible actions to perform with MCRpy, naturally starting with characterize and reconstruct. Match is a shortcut, performing characterization and immediate reconstruction from the same descriptors.
+When you choose the match action on the left, all possible options are presented in the center and can be set by the user.
+**WARNING**: MCRpy is intended as a flexible research platform, not as a stable production software. Not all parameter configurations lead to the expected results. As a starting point for choosing parameters, see the example gallery!
+We choose the following settings:
+- descriptor_types: Correlations, Variation
+- descriptor_weights: 1, 100
+- limit_to: 8
+- use_multiphase: False
+- add_dimension: 64
+All other settings are chosen as their standard value.
 
 ### MCRpy command line interface
 The most efficient way to use MCRpy is probably by the command line interface, allowing for automation and HPC application. The same outcome as in the GUI example can be obtained by simply typing
 `python match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy --descriptor_types Correlations Variation --descriptor_weights 1 100 --add_dimension 64  --no_multiphase --limit_to 8`
+Note that all settings have the same name as in the GUI.
 
-You can automate this in loops very simply.
+You can automate this in loops very simply to reconstruct multiple microstructures. The index `i` is passed to the `--information` argument to have it added to all filenames, so the files don't override each other.
 ```bash
 python characterize.py ms_slice.npy --limit_to 8 --descriptor_types Correlations Variation
 for i in {1..9} 
@@ -98,7 +110,7 @@ done
 ```
 
 ### MCRpy as a Python package
-You can import MCRpy as a regular Python package to obtain direct access to the underlying objects
+You can import MCRpy as a regular Python package to obtain direct access to the underlying objects. In this example, we characterize two microstructure slices, interpolate between them in the descriptor space and reconstruct the interpolated values.
 
 ```python
 import mcrpy
@@ -138,9 +150,11 @@ for i, interpolated_descriptor in enumerate(d_inter):
 
 ## Example gallery
 
-Simple 2D match using MGCorrelations only
+Simple 2D match using Correlations only.
+`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
 
-`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
+Do the same thing faster by reducing `limit_to` from its default `16` to `8`.
+`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
 
 2D match using MGCorrelations, GramMatrices and TotalVariation
 
