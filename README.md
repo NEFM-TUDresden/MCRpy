@@ -72,16 +72,11 @@ Reconstruct a microstructure given the descriptors: characterize.py
 Do characterization and reconstruction in one step: match.py
 - Remarks see characterize and reconstruct
 
-View a microstructure or the convergence data from the reconstruction: view.py
-- r to toggle rounded/unrounded values
-- n to display next MS
-- p to display previous MS
-- click on blue dots to display corresponding MS
-<img src="images/example_view_ms.png" height="400" alt="Example for viewing MS"> </img>
-
 ### MCRpy graphical user interface
 Thanks to the great package [Gooey](https://github.com/chriskiehl/Gooey), MCRpy can be accessed by a simple GUI. This helps to get started and allows MCR to non-programmers.
-<img src="images/mcrpy_gui.png" height="400" alt="MCRpy GUI"> </img>
+
+<img src="images/mcrpy_gui.png" height="600" alt="MCRpy GUI"> </img>
+
 The left-hand sind shows a list of all possible actions to perform with MCRpy, naturally starting with characterize and reconstruct. Match is a shortcut, performing characterization and immediate reconstruction from the same descriptors.
 When you choose the match action on the left, all possible options are presented in the center and can be set by the user.
 **WARNING**: MCRpy is intended as a flexible research platform, not as a stable production software. Not all parameter configurations lead to the expected results. As a starting point for choosing parameters, see the example gallery!
@@ -93,9 +88,27 @@ We choose the following settings:
 - add_dimension: 64
 All other settings are chosen as their standard value.
 
+You can view the reconstruction result by the view action in the same GUI. If you browse to the `last_frame.npy` file, you will get an output like this:
+
+<img src="images/example_view_ms.png" height="400" alt="Example for viewing MS"> </img>
+
+If you browse to the `convergence_data.pickle` file, you get an interactive display of the convergence data:
+
+<img src="images/mcrpy_convergence.png" height="400" alt="MCRpy convergence"> </img>
+
+In this window, you can
+- click on blue dots to display corresponding MS
+- press `n` to display next intermediate microstructure
+- press `p` to display previous intermediate microstructure
+- press `c` to cycle through phase indicator functions and the index of the largest indicator function at each position (max phase)
+- press `l` to change y-axis to logarithmic
+- zoom and measure with your mouse as in any interactive `Matplotlib` plot
+
 ### MCRpy command line interface
 The most efficient way to use MCRpy is probably by the command line interface, allowing for automation and HPC application. The same outcome as in the GUI example can be obtained by simply typing
+
 `python match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy --descriptor_types Correlations Variation --descriptor_weights 1 100 --add_dimension 64  --no_multiphase --limit_to 8`
+
 Note that all settings have the same name as in the GUI.
 
 You can automate this in loops very simply to reconstruct multiple microstructures. The index `i` is passed to the `--information` argument to have it added to all filenames, so the files don't override each other.
@@ -151,32 +164,36 @@ for i, interpolated_descriptor in enumerate(d_inter):
 ## Example gallery
 
 Simple 2D match using Correlations only.
-`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
+
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
 
 Do the same thing faster by reducing `limit_to` from its default `16` to `8`.
-`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
 
-2D match using MGCorrelations, GramMatrices and TotalVariation
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations GramMatrices TotalVariation --descriptor_weights 1.0 0.001 0.0001 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50`
+Do the same thing in 3D. Here, you need to include the variation to the descriptors and set the corresponding weight very high, otherwise you will get noisy results.
 
-3D match using MGCorrelations only
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 8 --descriptor_types Correlations Variation --descriptor_weights 1 100--add_dimension 64`
 
-`python match.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --data_folder results --limit_to_height 8 --limit_to_width 8 --descriptor_types MGCorrelations --descriptor_weights 1.0 --optimizer_type LBFGSB --max_iter 1000 --convergence_data_steps 50 --add_dimension 64`
+Do the same thing using also with Gram matrices as descriptors. For Gram matrices, `limit_to` can not be as low as `8` because otherise the internal average-pooling of the VGG-19 would have feature maps of shape 0 or less.
 
-characterize only using MGCorrelations, GramMatrices and TotalVariation
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --add_dimension 64`
 
-`python characterize.py --microstructure_filename microstructures/checkerboard_ms_64x64.npy --descriptor_types GramMatrices MGCorrelations TotalVariation --data_folder results`
+You can also just characterize the microstructure without reconstructing it:
 
-2D reconstruct only using MGCorrelations only
+`python characterize.py microstructures/pymks_ms_64x64.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices`
 
-`python reconstruct.py --descriptor_filename results/checkerboard_ms_64x64_characterisation.pickle --descriptor_types MGCorrelations --descriptor_weights 1.0 --data_folder results --extent_x 64 --extent_y 64`
+And then reconstruct later:
 
-View a microstructure
+`python reconstruct.py --descriptor_filename results/pymks_ms_64x64_characterization.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --extent_x 64 --extent_y 64 --extent_z 64`
 
-`python view.py microstructures/checkerboard_ms_64x64.npy`
+You can view the original and reconstructed microstructure:
 
-View convergence data
+`python view.py microstructures/pymks_ms_64x64.npy`
+
+`python view.py results/last_frame.npy`
+
+And to view the convergence data:
 
 `python view.py results/convergence_data.pickle`
 
