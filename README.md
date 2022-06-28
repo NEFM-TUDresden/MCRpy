@@ -17,37 +17,37 @@ Contents:
 
 [   a) Simple install](###simpleinstall)
 
-[   b)Editable install](### editable install)
+[   b)Editable install](###editableinstall)
 
-[   c)HPC install](### for hpc)
+[   c)HPC install](###forhpc)
 
-[2) Dependencies](## dependencies)
+[2) Dependencies](##dependencies)
 
-[3) Getting started](## getting started)
+[3) Getting started](##gettingstarted)
 
-[   a) Graphical user interface](### mcrpy graphical user interface)
+[   a) Graphical user interface](###mcrpygraphicaluserinterface)
 
-[   b) Command line interface](### mcrpy command line interface)
+[   b) Command line interface](###mcrpycommandlineinterface)
 
-[   c) Python package](### mcrpy as a python package)
+[   c) Python package](###mcrpyasapythonpackage)
 
-[4) Examples](## examples)
+[4) Examples](##examples)
 
-[   a) Quick start](### quick start)
+[   a) Quick start](###quickstart)
 
-[   b) Single-phase vs multi-phase](### single-phase vs multi-phase)
+[   b) Single-phase vs multi-phase](###single-phasevsmulti-phase)
 
-[   c) Multigrid](### multigrid)
+[   c) Multigrid](###multigrid)
 
-[   d) Descriptors](### descriptors)
+[   d) Descriptors](###descriptors)
 
-[   e) Descriptor weights](### descriptor weights)
+[   e) Descriptor weights](###descriptorweights)
 
-[5) Extending MCRpy by plugins](## extending mcrpy by plugins)
+[5) Extending MCRpy by plugins](##extendingmcrpybyplugins)
 
-[6) Information](## information)
+[6) Information](##information)
 
-[7) License](## license)
+[7) License](##license)
 
 ## Installation
 
