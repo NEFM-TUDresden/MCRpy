@@ -11,11 +11,25 @@ MCRpy provides a simple way to characterize a microstructure with a set of descr
 
 A key feature of MCRpy is its modularity and extensibility: You can combine **any** descriptors in **any** loss function and use **any** optimizer to solve the emerging optimization problem.
 
-MCRpy can be used
-1. as a regular program with graphical user interface (GUI), intended for non-programmers and as an easy introduction to MCR,
-2. as a command line tool, intended for automated and large-scale application and for high-performance computers without GUI, and
-3. as a PIP-installable Python library, intended for performing advanced and custom operations in the descriptor space.
-
+Contents:
+[1) Installation](## installation)
+[   a) Simple install](### simple install)
+[   b)Editable install](### editable install)
+[   c)HPC install](### for hpc)
+[2) Dependencies](## dependencies)
+[3) Getting started](## getting started)
+[   a) Graphical user interface](### mcrpy graphical user interface)
+[   b) Command line interface](### mcrpy command line interface)
+[   c) Python package](### mcrpy as a python package)
+[4) Examples](## examples)
+[   a) Quick start](### quick start)
+[   b) Single-phase vs multi-phase](### single-phase vs multi-phase)
+[   c) Multigrid](### multigrid)
+[   d) Descriptors](### descriptors)
+[   e) Descriptor weights](### descriptor weights)
+[5) Extending MCRpy by plugins](## extending mcrpy by plugins)
+[6) Information](## information)
+[7) License](## license)
 
 ## Installation
 
@@ -57,6 +71,11 @@ A GPU is technically not needed, but helps a lot and is practically indispensabl
 The code should in principle be platform-independent, but we are testing mainly on Debian.
 
 ## Getting started
+
+MCRpy can be used
+1. as a regular program with graphical user interface (GUI), intended for non-programmers and as an easy introduction to MCR,
+2. as a command line tool, intended for automated and large-scale application and for high-performance computers without GUI, and
+3. as a PIP-installable Python library, intended for performing advanced and custom operations in the descriptor space.
 
 ### MCRpy graphical user interface
 Thanks to the great package [Gooey](https://github.com/chriskiehl/Gooey), MCRpy can be accessed by a simple GUI. This helps to get started and allows MCR to non-programmers.
