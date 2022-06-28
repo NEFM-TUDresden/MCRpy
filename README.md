@@ -14,9 +14,9 @@ A key feature of MCRpy is its modularity and extensibility: You can combine **an
 Contents:
 
 [1) Installation](##installation)  
-- [Simple install](###simpleinstall)  
-- [Editable install](###editableinstall)  
-- [HPC install](###forhpc)  
+&nbsp;&nbsp;&nbsp;&nbsp;[Simple install](###simpleinstall)  
+[Editable install](###editableinstall)  
+[HPC install](###forhpc)  
 [2) Dependencies](##dependencies)  
 [3) Getting started](##gettingstarted)  
 [   a) Graphical user interface](###mcrpygraphicaluserinterface)  
