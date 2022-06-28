@@ -14,38 +14,22 @@ A key feature of MCRpy is its modularity and extensibility: You can combine **an
 Contents:
 
 [1) Installation](##installation)  
-[   a) Simple install](###simpleinstall)
-
-[   b)Editable install](###editableinstall)
-
-[   c)HPC install](###forhpc)
-
-[2) Dependencies](##dependencies)
-
-[3) Getting started](##gettingstarted)
-
-[   a) Graphical user interface](###mcrpygraphicaluserinterface)
-
-[   b) Command line interface](###mcrpycommandlineinterface)
-
-[   c) Python package](###mcrpyasapythonpackage)
-
-[4) Examples](##examples)
-
-[   a) Quick start](###quickstart)
-
-[   b) Single-phase vs multi-phase](###single-phasevsmulti-phase)
-
-[   c) Multigrid](###multigrid)
-
-[   d) Descriptors](###descriptors)
-
-[   e) Descriptor weights](###descriptorweights)
-
-[5) Extending MCRpy by plugins](##extendingmcrpybyplugins)
-
-[6) Information](##information)
-
+> [a) Simple install](###simpleinstall)  
+[   b)Editable install](###editableinstall)  
+[   c)HPC install](###forhpc)  
+[2) Dependencies](##dependencies)  
+[3) Getting started](##gettingstarted)  
+[   a) Graphical user interface](###mcrpygraphicaluserinterface)  
+[   b) Command line interface](###mcrpycommandlineinterface)  
+[   c) Python package](###mcrpyasapythonpackage)  
+[4) Examples](##examples)  
+[   a) Quick start](###quickstart)  
+[   b) Single-phase vs multi-phase](###single-phasevsmulti-phase)  
+[   c) Multigrid](###multigrid)  
+[   d) Descriptors](###descriptors)  
+[   e) Descriptor weights](###descriptorweights)  
+[5) Extending MCRpy by plugins](##extendingmcrpybyplugins)  
+[6) Information](##information)  
 [7) License](##license)
 
 ## Installation
