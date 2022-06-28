@@ -79,7 +79,9 @@ Thanks to the great package [Gooey](https://github.com/chriskiehl/Gooey), MCRpy 
 
 The left-hand sind shows a list of all possible actions to perform with MCRpy, naturally starting with characterize and reconstruct. Match is a shortcut, performing characterization and immediate reconstruction from the same descriptors.
 When you choose the match action on the left, all possible options are presented in the center and can be set by the user.
+
 **WARNING**: MCRpy is intended as a flexible research platform, not as a stable production software. Not all parameter configurations lead to the expected results. As a starting point for choosing parameters, see the example gallery!
+
 We choose the following settings:
 - descriptor_types: Correlations, Variation
 - descriptor_weights: 1, 100
@@ -88,9 +90,25 @@ We choose the following settings:
 - add_dimension: 64
 All other settings are chosen as their standard value.
 
-You can view the reconstruction result by the view action in the same GUI. If you browse to the `last_frame.npy` file, you will get an output like this:
+You can view the original structure, its descriptors and the reconstruction results by the view action in the same GUI.
+The original structure is copied to the results folder and displayed directly by MCRpy:
 
-<img src="images/example_view_ms.png" height="400" alt="Example for viewing MS"> </img>
+<img src="images/mcrpy_og_ms.png" height="400" alt="Original microstructure"> </img>
+
+The corresponding descriptors can be inspected from the `*_characterization.pickle` file:
+
+<img src="images/mcrpy_descriptors.png" height="400" alt="Descriptor visualization"> </img>
+
+You can see that multigrid descriptors with three layers were used and no multiphase.
+For three-point correlations, only the subset of two-point correlations are plotted for clarity.
+The variation is plotted by a bar plot (not shown here).
+You can view the plots interactively or have them saved with the `savefig` option.
+
+The reconstruction results is saved as `last_frame.npy`. 
+Because it is 3D, it can not be displayed directly by MCRpy but is exported to paraview.
+This requires `savefig` to be set to `True`.
+
+<img src="images/mcrpy_last_frame.png" height="400" alt="Example for viewing MS"> </img>
 
 If you browse to the `convergence_data.pickle` file, you get an interactive display of the convergence data:
 
@@ -161,35 +179,37 @@ for i, interpolated_descriptor in enumerate(d_inter):
     mcrpy.save_microstructure(f'ms_interpolated_{i}.npy', smoothed_ms)
 ```
 
-## Example gallery
+## Examples
+The example gallery uses MCRpy on the command line for brevity, but you can do the same in the GUI or on the command line interface.
 
+### Quick start
 Simple 2D match using Correlations only.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 8 --descriptor_types Correlations`
 
 Do the same thing faster by reducing `limit_to` from its default `16` to `8`.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 8 --descriptor_types Correlations`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 8 --descriptor_types Correlations`
 
 Do the same thing in 3D. Here, you need to include the variation to the descriptors and set the corresponding weight very high, otherwise you will get noisy results.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 8 --descriptor_types Correlations Variation --descriptor_weights 1 100--add_dimension 64`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 8 --descriptor_types Correlations Variation --descriptor_weights 1 100--add_dimension 64`
 
 Do the same thing using also with Gram matrices as descriptors. For Gram matrices, `limit_to` can not be as low as `8` because otherise the internal average-pooling of the VGG-19 would have feature maps of shape 0 or less.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --add_dimension 64`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --add_dimension 64`
 
 You can also just characterize the microstructure without reconstructing it:
 
-`python characterize.py microstructures/pymks_ms_64x64.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices`
+`python characterize.py microstructures/pymks_ms_64x64_2.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices`
 
 And then reconstruct later:
 
-`python reconstruct.py --descriptor_filename results/pymks_ms_64x64_characterization.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --extent_x 64 --extent_y 64 --extent_z 64`
+`python reconstruct.py --descriptor_filename results/pymks_ms_64x64_2_characterization.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --extent_x 64 --extent_y 64 --extent_z 64`
 
 You can view the original and reconstructed microstructure:
 
-`python view.py microstructures/pymks_ms_64x64.npy`
+`python view.py microstructures/pymks_ms_64x64_2.npy`
 
 `python view.py results/last_frame.npy`
 
@@ -197,8 +217,58 @@ And to view the convergence data:
 
 `python view.py results/convergence_data.pickle`
 
+### Single-phase vs multi-phase
+The multiphase setting is activated by default.
+For structures with more than 2 phases, like the composite example given in the `example_microstructures`, it needs to be activated, otherwise you can switch it off.
+If you use `--no_multiphase`, MCRpy will not use an indicator function for every phase, but only for phase `1`.
+This is more memory-efficient but can sometimes be ill-conditioned. 
+For example, `alloy_resized_s.npy` has the grain boundaries marked as `0` and the rest as `1`, so if no multiphase is used, the reconstruction has to be carried out only based on the grains.
+The following will fail:
+
+`python match.py --microstructure_filename microstructures/alloy_resized_s.npy --descriptor_types Correlations --no_multiphase`
+
+The second example, `alloy_inverted_s.npy` has phases `0` and `1` swapped and can be reconstructed easily:
+
+`python match.py --microstructure_filename microstructures/alloy_inverted_s.npy --descriptor_types Correlations --no_multiphase`
+
+So it would make sense to use multiphase to just describe both phases and be safe, right?
+
+`python match.py --microstructure_filename microstructures/alloy_resized_s.npy --descriptor_types Correlations`
+
+It turns out that this performs ok, but worse than single phase on the inverted structure for numerical reasons. For multiphase structures, the condition that the sum over all indicator functions should equal `1` at each pixel is only implemented by a penalty method currently, so it is not fulfilled exactly and high weights (`phase_sum_multiplier`) lead to numerical problems.
+
+Generally, correlations as descriptors perform best for convex-shaped inclusions.
+With other settings, the convergence might fail.
+The Gram matrices are a more robust descriptor to include here.
+
+### Multigrid
+There are two settings, `use_multigrid_descriptors` and `use_multigrid_reconstruction`:
+- `use_multigrid_descriptors` refers to a reduced descriptor accuracy for long-range information, similar to a feature pyramid, and is described in [this paper](https://www.sciencedirect.com/science/article/abs/pii/S0927025621001804). It applies to characterization and reconstruction.
+- `use_multigrid_reconstruction` applies to reconstruction only and requires multigrid descriptors. Here, MCRpy first reconstructs downsampled versions of the structure (recursively). The recursion depth is limited by `2 * limit_to`. For example, for a `128x128` structure and `limit_to = 16`, MCRpy first reconstructs `32x32`, then `64x64` and finally `128x128`, always using the coarse solution as initialization. The advantage is that `max_iter` can be reduced. Also, it is especially important in 3D and for high-resolution structures to "get started".
+
+The convergence curve below comes from the following command:
+
+`python match.py --microstructure_filename microstructures/alloy_inverted_s.npy --descriptor_types Correlations --no_multiphase --use_multigrid_reconstruction`
+
+<img src="images/mcrpy_mg.png" height="400" alt="MCRpy convergence"> </img>
+
+### Descriptors
+As shown in [this paper](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520) in Figure 8, there seems to be no single best descriptor for all microstructures, but the optimal choice depends on the microstructure. For example, correlations perform very well for most example microstructures, but not for te copolymer. In this case, Gram matrices are better.
+
+`python match.py --microstructure_filename microstructures/copolymer_resized_s.npy --descriptor_types GramMatrices`
+
+<img src="images/mcrpy_copolymer.png" height="400" alt="Copolymer example"> </img>
+
+### Descriptor weights
+The `--descriptor_weights` set the weight for each descriptor in the loss function. The default is `1` for each descriptor.
+In 3D, it is important that the `Variation` has a sufficiently high weight.
+Also, it is important to know that descriptors are computed and prescribed on each slice separately.
+For example, **in 2D**, if you do `--descriptor_types Correlations VolumeFractions --descriptor_weights 1 100`, i.e. weight the `VolumeFractions` 100 times higher than the `Correlations`, this does the same as `--descriptor_types Correlations --descriptor_weights 1`, since the information of the `VolumeFractions` is already included in the `Correlations`.
+However, **in 3D** this changes a lot for gradient-based reconstruction, because it effectively penalizes variations of the `VolumeFractions` over slices. Every slice has to match the desired `VolumeFractions` **exactly**, whereas the `VolumeFractions` matter little.
+For gradient-based reconstruction, this usually means that every single pixel has the desired volume fraction and there is no structure. For the `SimulatedAnnealing` optimizer (Yeong-Torquato-Algorithm), it doesn't matter, since the `VolumeFractions` are fulfilled anyway.
+
 ## Extending MCRpy by plugins
-Besides normal code contributionby merge request - which is always welcome - you can extend MCRpy very simply by writing plugins for microstructure descriptors, optimizers and loss function. The currently available descriptors, optimizers and losses are also plugins, so you can read this code to see how it's done. As a simple example, here is the descriptor plugin for the volume fraction:
+Besides normal code contribution by merge request - which is always welcome - you can extend MCRpy very simply by writing plugins for microstructure descriptors, optimizers and loss function. The currently available descriptors, optimizers and losses are also plugins, so you can read this code to see how it's done. As a simple example, here is the descriptor plugin for the volume fraction:
 ```python
 import tensorflow as tf
 from mcrpy.src import descriptor_factory
@@ -218,6 +288,8 @@ class VolumeFractions(Descriptor):
 def register() -> None:
     descriptor_factory.register("VolumeFractions", VolumeFractions)
 ```
+
+For visualization, the standard behavior is that a bar plot is made for low-dimensional descriptors and a heatmap is made for high-dimensional descriptors. You can change this by overriding `Descriptor.visualize_subplot`in your plugin. See `descriptors/Correlations.py` for an example.
 
 ## Information
 This code has been written by [Paul Seibert](https://www.researchgate.net/profile/Paul-Seibert) and [Alexander Rassloff](https://www.researchgate.net/profile/Alexander-Rassloff) in the lab of [Markus Kaestner](https://www.researchgate.net/profile/Markus-Kaestner) at the [institute of solid mechanics](https://tu-dresden.de/ing/maschinenwesen/ifkm/nefm), TU Dresden, Germany.
