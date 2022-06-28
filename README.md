@@ -58,24 +58,10 @@ The code should in principle be platform-independent, but we are testing mainly 
 
 ## Getting started
 
-Characterize a microstructure to get the descriptors: characterize.py 
-- MS needs to be a numpy array stored with np.save() as a npy array
-- Descriptors can be given as list
-- For MGCorrelations, the limit_to parameters trade off accuracy vs compute
-
-Reconstruct a microstructure given the descriptors: characterize.py 
-- The descriptor needs to be a pickle-file written by characterize.py
-- Descriptors can be given as list and need a list of weights how strongly they should be considered in the reconstruction
-- Again, for MGCorrelations, the limit_to parameters trade off accuracy vs compute
-
-
-Do characterization and reconstruction in one step: match.py
-- Remarks see characterize and reconstruct
-
 ### MCRpy graphical user interface
 Thanks to the great package [Gooey](https://github.com/chriskiehl/Gooey), MCRpy can be accessed by a simple GUI. This helps to get started and allows MCR to non-programmers.
 
-<img src="images/mcrpy_gui.png" height="600" alt="MCRpy GUI"> </img>
+<img align="center" src="images/mcrpy_gui.png" height="600" alt="MCRpy GUI"> </img>
 
 The left-hand sind shows a list of all possible actions to perform with MCRpy, naturally starting with characterize and reconstruct. Match is a shortcut, performing characterization and immediate reconstruction from the same descriptors.
 When you choose the match action on the left, all possible options are presented in the center and can be set by the user.
@@ -93,11 +79,11 @@ All other settings are chosen as their standard value.
 You can view the original structure, its descriptors and the reconstruction results by the view action in the same GUI.
 The original structure is copied to the results folder and displayed directly by MCRpy:
 
-<img src="images/mcrpy_og_ms.png" height="400" alt="Original microstructure"> </img>
+<img align="center" src="images/mcrpy_og_ms.png" height="300" alt="Original microstructure"> </img>
 
 The corresponding descriptors can be inspected from the `*_characterization.pickle` file:
 
-<img src="images/mcrpy_descriptors.png" height="400" alt="Descriptor visualization"> </img>
+<img align="center" src="images/mcrpy_descriptors.png" height="300" alt="Descriptor visualization"> </img>
 
 You can see that multigrid descriptors with three layers were used and no multiphase.
 For three-point correlations, only the subset of two-point correlations are plotted for clarity.
@@ -108,11 +94,11 @@ The reconstruction results is saved as `last_frame.npy`.
 Because it is 3D, it can not be displayed directly by MCRpy but is exported to paraview.
 This requires `savefig` to be set to `True`.
 
-<img src="images/mcrpy_last_frame.png" height="400" alt="Example for viewing MS"> </img>
+<img align="center" src="images/mcrpy_last_frame.png" height="400" alt="Example for viewing MS"> </img>
 
 If you browse to the `convergence_data.pickle` file, you get an interactive display of the convergence data:
 
-<img src="images/mcrpy_convergence.png" height="400" alt="MCRpy convergence"> </img>
+<img align="center" src="images/mcrpy_convergence.png" height="400" alt="MCRpy convergence"> </img>
 
 In this window, you can
 - click on blue dots to display corresponding MS
@@ -250,14 +236,14 @@ The convergence curve below comes from the following command:
 
 `python match.py --microstructure_filename microstructures/alloy_inverted_s.npy --descriptor_types Correlations --no_multiphase --use_multigrid_reconstruction`
 
-<img src="images/mcrpy_mg.png" height="400" alt="MCRpy convergence"> </img>
+<img align="center" src="images/mcrpy_mg.png" height="400" alt="MCRpy convergence"> </img>
 
 ### Descriptors
 As shown in [this paper](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520) in Figure 8, there seems to be no single best descriptor for all microstructures, but the optimal choice depends on the microstructure. For example, correlations perform very well for most example microstructures, but not for te copolymer. In this case, Gram matrices are better.
 
 `python match.py --microstructure_filename microstructures/copolymer_resized_s.npy --descriptor_types GramMatrices`
 
-<img src="images/mcrpy_copolymer.png" height="400" alt="Copolymer example"> </img>
+<img align="center" src="images/mcrpy_copolymer.png" height="400" alt="Copolymer example"> </img>
 
 ### Descriptor weights
 The `--descriptor_weights` set the weight for each descriptor in the loss function. The default is `1` for each descriptor.
