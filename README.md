@@ -11,23 +11,22 @@ MCRpy provides a simple way to characterize a microstructure with a set of descr
 
 A key feature of MCRpy is its modularity and extensibility: You can combine **any** descriptors in **any** loss function and use **any** optimizer to solve the emerging optimization problem.
 
-Contents:
-
+**Contents**:  
 [1) Installation](##installation)  
-&nbsp;&nbsp;&nbsp;&nbsp;[Simple install](###simpleinstall)  
-[Editable install](###editableinstall)  
-[HPC install](###forhpc)  
+&nbsp;&nbsp;&nbsp;&nbsp;[a) Simple install](###simpleinstall)  
+&nbsp;&nbsp;&nbsp;&nbsp;[b) Editable install](###editableinstall)  
+&nbsp;&nbsp;&nbsp;&nbsp;[c) HPC install](###forhpc)  
 [2) Dependencies](##dependencies)  
 [3) Getting started](##gettingstarted)  
-[   a) Graphical user interface](###mcrpygraphicaluserinterface)  
-[   b) Command line interface](###mcrpycommandlineinterface)  
-[   c) Python package](###mcrpyasapythonpackage)  
+&nbsp;&nbsp;&nbsp;&nbsp;[a) Graphical user interface](###mcrpygraphicaluserinterface)  
+&nbsp;&nbsp;&nbsp;&nbsp;[b) Command line interface](###mcrpycommandlineinterface)  
+&nbsp;&nbsp;&nbsp;&nbsp;[c) Python package](###mcrpyasapythonpackage)  
 [4) Examples](##examples)  
-[   a) Quick start](###quickstart)  
-[   b) Single-phase vs multi-phase](###single-phasevsmulti-phase)  
-[   c) Multigrid](###multigrid)  
-[   d) Descriptors](###descriptors)  
-[   e) Descriptor weights](###descriptorweights)  
+&nbsp;&nbsp;&nbsp;&nbsp;[a) Quick start](###quickstart)  
+&nbsp;&nbsp;&nbsp;&nbsp;[b) Single-phase vs multi-phase](###single-phasevsmulti-phase)  
+&nbsp;&nbsp;&nbsp;&nbsp;[c) Multigrid](###multigrid)  
+&nbsp;&nbsp;&nbsp;&nbsp;[d) Descriptors](###descriptors)  
+&nbsp;&nbsp;&nbsp;&nbsp;[e) Descriptor weights](###descriptorweights)  
 [5) Extending MCRpy by plugins](##extendingmcrpybyplugins)  
 [6) Information](##information)  
 [7) License](##license)
