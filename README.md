@@ -15,7 +15,7 @@ Contents:
 
 [1) Installation](##installation)
 
-[   a) Simple install](###simple install)
+[   a) Simple install](###simpleinstall)
 
 [   b)Editable install](### editable install)
 
