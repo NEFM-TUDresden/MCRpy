@@ -12,23 +12,41 @@ MCRpy provides a simple way to characterize a microstructure with a set of descr
 A key feature of MCRpy is its modularity and extensibility: You can combine **any** descriptors in **any** loss function and use **any** optimizer to solve the emerging optimization problem.
 
 Contents:
+
 [1) Installation](##installation)
-[   a) Simple install](### simple install)
+
+[   a) Simple install](###simple install)
+
 [   b)Editable install](### editable install)
+
 [   c)HPC install](### for hpc)
+
 [2) Dependencies](## dependencies)
+
 [3) Getting started](## getting started)
+
 [   a) Graphical user interface](### mcrpy graphical user interface)
+
 [   b) Command line interface](### mcrpy command line interface)
+
 [   c) Python package](### mcrpy as a python package)
+
 [4) Examples](## examples)
+
 [   a) Quick start](### quick start)
+
 [   b) Single-phase vs multi-phase](### single-phase vs multi-phase)
+
 [   c) Multigrid](### multigrid)
+
 [   d) Descriptors](### descriptors)
+
 [   e) Descriptor weights](### descriptor weights)
+
 [5) Extending MCRpy by plugins](## extending mcrpy by plugins)
+
 [6) Information](## information)
+
 [7) License](## license)
 
 ## Installation
