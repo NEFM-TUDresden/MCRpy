@@ -102,6 +102,7 @@ If you browse to the `convergence_data.pickle` file, you get an interactive disp
 
 In this window, you can
 - click on blue dots to display corresponding MS
+- use your mouse wheel to scroll through slices of the microstructure if it is 3D
 - press `n` to display next intermediate microstructure
 - press `p` to display previous intermediate microstructure
 - press `c` to cycle through phase indicator functions and the index of the largest indicator function at each position (max phase)
