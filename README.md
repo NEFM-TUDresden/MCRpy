@@ -13,7 +13,7 @@ A key feature of MCRpy is its modularity and extensibility: You can combine **an
 
 **Contents**:  
 [1) Installation](##installation)  
-&nbsp;&nbsp;&nbsp;&nbsp;[a) Simple install](###simpleinstall)  
+&nbsp;&nbsp;&nbsp;&nbsp;[a) Simple install](###simple-install)  
 &nbsp;&nbsp;&nbsp;&nbsp;[b) Editable install](###editableinstall)  
 &nbsp;&nbsp;&nbsp;&nbsp;[c) HPC install](###forhpc)  
 [2) Dependencies](##dependencies)  
