@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def readme():
     with open('README.rst') as f:
@@ -11,7 +11,7 @@ setup(name='mcrpy',
       author='NEFM-TUDresden',
       author_email='paul.seibert@tu-dresden.de',
       license='Apache2.0',
-      packages=setuptools.find_packages(),
+      packages=find_packages(),
       install_requires=[
           'numpy>=1.20.1',
           'tensorflow>=2.3.1',
