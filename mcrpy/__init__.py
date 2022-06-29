@@ -26,6 +26,6 @@ from .src.Settings import CharacterizationSettings, ReconstructionSettings, Matc
 from .src.fileutils import load
 
 
-__version__ = "0.1"
+__version__ = "0.1.0"
 __author__ = 'Paul Seibert'
 __credits__ = 'Technische Universitaet Dresden'
