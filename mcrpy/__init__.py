@@ -24,3 +24,8 @@ from .view import view
 from .smooth import smooth
 from .src.Settings import CharacterizationSettings, ReconstructionSettings, MatchingSettings
 from .src.fileutils import load
+
+
+__version__ = "0.1"
+__author__ = 'Paul Seibert'
+__credits__ = 'Technische Universitaet Dresden'
