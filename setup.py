@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='mcrpy',
-      version='0.1',
+      version='0.1.0',
       description='Microstructure characterization and reconstruction in Python',
       url='https://github.com/NEFM-TUDresden/MCRpy',
       author='NEFM-TUDresden',
