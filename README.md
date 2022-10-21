@@ -1,6 +1,8 @@
 # MCRpy 
 ## Microstructure Characterization and Reconstruction in Python
 
+<p align="center"><img src="images/schema.png" height="300" alt="MCRpy schema"> </img></p>
+
 Microstructure characterization and reconstruction (MCR) is an emerging field of computational materials engineering that allows to
 
 1. create a plausible 3D volume element from a 2D slice like a microscopy image for numerical computations,
@@ -304,11 +306,14 @@ This code has been written by [Paul Seibert](https://www.researchgate.net/profil
 The following papers describe this work in different ways:
 * Central idea and the differentiable extension of n-point correlations: [Seibert et al., Reconstructing random heterogeneous media through differentiable optimization, COMMAT, 2021](https://www.sciencedirect.com/science/article/abs/pii/S0927025621001804)
 * Extension to 3D: [Seibert et al., Descriptor-based reconstruction of three-dimensional microstructures through gradient-based optimization, Acta Materialia, 2022](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520)
-* MCRpy as a library: Seibert et al., Microstructure Characterization and Reconstruction in Python - MCRpy, ArXiv, 2022
+* MCRpy as a library: [Seibert et al., Microstructure Characterization and Reconstruction in Python - MCRpy, IMMJ, 2022](https://link.springer.com/article/10.1007/s40192-022-00273-4)
 
 All works are also available on as pre-print on ArXiv
 
 Please cite at least one of these sources if you use MCRpy in your work.
+
+## Image credits
+Some images are taken from [our latest publication](https://link.springer.com/article/10.1007/s40192-022-00273-4).
 
 ## License
 MCRpy is published under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
