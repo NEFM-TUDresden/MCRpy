@@ -194,7 +194,7 @@ The example gallery uses MCRpy on the command line for brevity, but you can do t
 ### Quick start
 Simple 2D match using Correlations only.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 8 --descriptor_types Correlations`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 16 --descriptor_types Correlations`
 
 Do the same thing faster by reducing `limit_to` from its default `16` to `8`.
 
