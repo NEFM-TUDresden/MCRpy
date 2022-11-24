@@ -202,11 +202,11 @@ Do the same thing faster by reducing `limit_to` from its default `16` to `8`.
 
 Do the same thing in 3D. Here, you need to include the variation to the descriptors and set the corresponding weight very high, otherwise you will get noisy results.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 8 --descriptor_types Correlations Variation --descriptor_weights 1 100--add_dimension 64`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy --limit_to 8 --descriptor_types Correlations Variation --descriptor_weights 1 100--add_dimension 64`
 
 Do the same thing using also with Gram matrices as descriptors. For Gram matrices, `limit_to` can not be as low as `8` because otherise the internal average-pooling of the VGG-19 would have feature maps of shape 0 or less.
 
-`python match.py --microstructure_filename microstructures/pymks_ms_64x64_2.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --add_dimension 64`
+`python match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy --limit_to 16 --descriptor_types Correlations Variation GramMatrices --descriptor_weights 1 100 1 --add_dimension 64`
 
 You can also just characterize the microstructure without reconstructing it:
 
