@@ -1,7 +1,8 @@
 # MCRpy 
-## Microstructure Characterization and Reconstruction in Python
 
 <p align="center"><img src="images/MCRpy-logo_png.png" height="150" alt="MCRpy logo"> </img></p>
+
+## Microstructure Characterization and Reconstruction in Python
 
 Microstructure characterization and reconstruction (MCR) is an emerging field of computational materials engineering that allows to
 
