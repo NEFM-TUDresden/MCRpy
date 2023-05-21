@@ -310,6 +310,7 @@ The following papers describe this work in different ways:
 * Central idea and the differentiable extension of n-point correlations: [Seibert et al., Reconstructing random heterogeneous media through differentiable optimization, COMMAT, 2021](https://www.sciencedirect.com/science/article/abs/pii/S0927025621001804)
 * Extension to 3D: [Seibert et al., Descriptor-based reconstruction of three-dimensional microstructures through gradient-based optimization, Acta Materialia, 2022](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520)
 * MCRpy as a library: [Seibert et al., Microstructure Characterization and Reconstruction in Python: MCRpy, IMMJ, 2022](https://link.springer.com/article/10.1007/s40192-022-00273-4)
+* Validation of MCRpy and introduction of post-processing: [Seibert et al., Two-stage 2D-to-3D reconstruction of realistic microstructures: Implementation and numerical validation by effective properties, CMAME, 2023](https://www.sciencedirect.com/science/article/abs/pii/S0045782523002220)
 
 All works are also available on as pre-print on ArXiv
 
