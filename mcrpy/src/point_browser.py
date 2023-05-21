@@ -17,14 +17,19 @@
 """
 from __future__ import annotations
 
+import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import matplotlib.style as mplstyle
 import numpy as np
+import tensorflow as tf
 
-from typing import Tuple
+from typing import Tuple, List
 
 from mcrpy.src import fileutils
+from mcrpy.src.Microstructure import Microstructure
+from mcrpy.src.Settings import ReconstructionSettings
+
 
 mplstyle.use('seaborn-notebook')
 
@@ -50,42 +55,25 @@ class PointBrowser(object):
     
     def __init__(self,
             scatter_data: np.ndarray,
-            raw_data: np.ndarray,
+            intermediate_microstructures: List[Microstructure],
             line_datas: np.ndarray = None,
-            original_ms: np.ndarray = None,
+            original_ms: Microstructure = None,
             xlabel: str = 'Iteration',
             ylabel: str = 'Cost',
+            settings: ReconstructionSettings = None,
             log_axis: bool = True):
-        """Point browser to analyze MCR convergence data interactively.
-
-        Args:
-            scatter_data (np.ndarray): Points that will be scatter-plotted and should be clickable
-                to obtain the MS at that iteration. First index is sample number, second index is
-                0: n_iteration, 1: value.
-            detail_data (np.ndarray): MS at different stages of convergence and additional information
-                (like correlation fields or so). First index is sample number, second is field number
-                (currently only size 1), third, fourth and fifth is 3D field. If field is 2D, fifth
-                index will be added automatically.
-            line_datas (dict, optional): Dict containing lines to plot. Keys are labels and values are
-                np.ndarray with same format as scatter_data, but not necessarily the same number of
-                samples. Defaults to None.
-            layout (tuple, optional): Layout of the different plots. Defaults to (1, 2).
-            log_axis (bool, optional): Use logarithmic axes for convergence plot. Recommended.
-                Defaults to True.
-        """
-        self.raw_data = raw_data[:, 0]
-        self.n_phases = self.raw_data.shape[-1]
-        if len(self.raw_data.shape) == 5:
-            self.raw_data = self.raw_data.reshape([*(self.raw_data.shape[:-1])] + [1, self.n_phases])
-        self.decoded_data = np.array([[fileutils.decode_ms(ms[0])] for ms in self.raw_data])
-        self.show_cycle = self.n_phases 
-        self.show_cycle_mod = self.n_phases + 1
-        if len(self.decoded_data.shape) == 4:
-            self.decoded_data = self.decoded_data.reshape([*self.decoded_data.shape] + [1])
-        assert len(self.decoded_data.shape) == 5
-        assert self.raw_data.shape[:-1] == self.decoded_data.shape
-        self.slices = self.decoded_data.shape[-1]
-        self.ind = self.slices // 2
+        self.intermediate_microstructures = [im if isinstance(im, Microstructure) else Microstructure(im[0, 0], use_multiphase=settings.use_multiphase, skip_encoding=True) for im in intermediate_microstructures] # legacy conversion
+        self.last_microstructure = self.intermediate_microstructures[-1]
+        if self.last_microstructure.has_orientations:
+            for im in self.intermediate_microstructures:
+                im.x = im.symmetry.project_to_fz(im.ori).x
+        self.show_cycle = self.last_microstructure.n_phases if self.last_microstructure.has_phases else 3
+        self.show_cycle_mod = self.show_cycle + 1 if self.last_microstructure.n_phases > 1 else self.show_cycle
+        self.current_dim = 0
+        self.slices = self.intermediate_microstructures[0].spatial_shape[self.current_dim]
+        self.current_slice_number = self.slices // 2
+        self.raw = False
+        self.n_ori_view = 0
 
         mg_level_starts, mg_level_indices = find_mg_layers(scatter_data[:, 0])
         annotation_indices = []
@@ -97,12 +85,20 @@ class PointBrowser(object):
         self.line_datas = line_datas
         self.xs = shift_by_mg_layer(scatter_data[:, 0])
         self.ys = scatter_data[:, 1]
+        self.original_ms = original_ms
 
         figsize = (8, 4) if original_ms is None else (12, 4)
         self.fig = plt.figure(figsize=figsize, tight_layout=True)
         layout = (1, 2) if original_ms is None else (1, 3)
         gs = gridspec.GridSpec(*layout)
         layout_start = 0 if original_ms is None else 1
+
+        self.ori_views = [
+            ('rho_1', lambda x: x[..., 0]),
+            ('rho_2', lambda x: x[..., 1]),
+            ('rho_3', lambda x: x[..., 2]),
+                ]
+        self.n_ori_views = len(self.ori_views)
 
         # main ax
         self.ax = self.fig.add_subplot(gs[0, layout_start])
@@ -115,10 +111,15 @@ class PointBrowser(object):
         self.lastind = 0
         self.text_choice = self.ax.text(0.95, 0.95, 'selected: none',
                 transform=self.ax.transAxes, va='top', ha='right')
-        self.text_scroll = self.ax.text(0.95, 0.90, 'use mouse wheel to scroll',
-                transform=self.ax.transAxes, va='top', ha='right')
-        self.text_cycle = self.ax.text(0.95, 0.85, 'use c to cycle between phases',
-                transform=self.ax.transAxes, va='top', ha='right')
+        if self.last_microstructure.is_3D:
+            self.text_scroll = self.ax.text(0.95, 0.90, 'use mouse wheel to scroll',
+                    transform=self.ax.transAxes, va='top', ha='right')
+        if self.last_microstructure.has_orientations:
+            self.text_view = self.ax.text(0.95, 0.80, 'use v and w to cycle views',
+                    transform=self.ax.transAxes, va='top', ha='right')
+        if self.last_microstructure.has_phases and self.last_microstructure.n_phases > 1:
+            self.text_cycle = self.ax.text(0.95, 0.85, 'use c to cycle between phases',
+                    transform=self.ax.transAxes, va='top', ha='right')
         for mg_jump, annotation_index in enumerate(annotation_indices):
             self.ax.text(self.xs[annotation_index], 0.7 * self.ys[annotation_index], f'MG jump {mg_jump + 1}',
                     va='top', ha='center')
@@ -137,15 +138,25 @@ class PointBrowser(object):
 
         # Handle other axes providing additional information
         if original_ms is not None:
-            original_ms = (original_ms - np.min(original_ms)) / (np.max(original_ms) - np.min(original_ms))
+            if original_ms.is_3D:
+                raise NotImplementedError('Displaying 3D original_ms not implemented')
             self.og_axis = self.fig.add_subplot(gs[0, 0])
-            self.og_img = self.og_axis.imshow(original_ms, cmap='cividis')
+            if original_ms.has_phases:
+                self.og_img = self.og_axis.imshow(original_ms.decode_phases(), cmap='cividis')
+            else:
+                self.og_img = self.og_axis.imshow(self.ori_views[self.n_ori_view][1](self.original_ms.get_orientation_field().numpy()))
             self.og_axis.get_xaxis().set_visible(False)
             self.og_axis.get_yaxis().set_visible(False)
         self.other_axes = [self.fig.add_subplot(gs[0, layout_start + 1])]
-        self.ims = [other_axis.imshow(self.decoded_data[self.lastind, 
-            n_axis, :, :, self.ind], cmap='cividis') 
-            for n_axis, other_axis in enumerate(self.other_axes)]
+        self.ims = [
+            other_axis.imshow(
+                self.get_relevant_slice(
+                    self.intermediate_microstructures[self.lastind]
+                ),
+                cmap='cividis',
+            )
+            for other_axis in self.other_axes
+        ]
         self.detail_data_3d = [None for other_axis in self.other_axes]
         for other_axis in self.other_axes:
             other_axis.get_xaxis().set_visible(False)
@@ -158,32 +169,52 @@ class PointBrowser(object):
         self.update_choice()
         plt.show()
 
+    def get_relevant_slice(self, ms: Microstructure):
+        relevant_slice = ms.get_slice(self.current_dim, self.current_slice_number) if ms.is_3D else ms.x
+        if self.last_microstructure.has_phases:
+            return ms.decode_phase_array(relevant_slice,
+                    specific_phase = None if self.show_cycle == self.last_microstructure.n_phases else self.show_cycle,
+                    raw = self.raw)
+        else:
+            return self.ori_views[self.n_ori_view][1](relevant_slice.numpy()[0])
+
     def onscroll(self, event):
         if event.button == 'up':
-            self.ind = (self.ind + 1) % self.slices
+            self.current_slice_number = (self.current_slice_number + 1) % self.slices
         else:
-            self.ind = (self.ind - 1) % self.slices
+            self.current_slice_number = (self.current_slice_number - 1) % self.slices
         self.update_scroll()
 
     def onpress(self, event):
         inc = 0
         if self.lastind is None:
             return
-        if event.key not in ('n', 'p', 'c', 'r', 'e', 'b'):
+        if event.key not in 'npcrebxyzvw':
             return
         if event.key == 'b':
             self.lastind = 0
-        if event.key == 'e':
-            self.lastind = len(self.xs) - 1
-        if event.key == 'n':
-            self.lastind += 1
-        if event.key == 'p':
-            self.lastind -= 1
-        if event.key == 'r':
-            self.show_cycle = self.n_phases
-        if event.key == 'c':
+        elif event.key == 'c':
             self.show_cycle = (self.show_cycle + 1) % self.show_cycle_mod
 
+        elif event.key == 'e':
+            self.lastind = len(self.xs) - 1
+        elif event.key == 'n':
+            self.lastind += 1
+        elif event.key == 'p':
+            self.lastind -= 1
+        elif event.key == 'r':
+            self.raw = not self.raw
+        elif event.key == 'v':
+            self.n_ori_view += 1
+        elif event.key == 'w':
+            self.n_ori_view -= 1
+        elif event.key == 'x':
+            self.current_dim = 0
+        elif event.key == 'y':
+            self.current_dim = 1
+        elif event.key == 'z':
+            self.current_dim = 2
+        self.n_ori_view = self.n_ori_view % self.n_ori_views
         self.lastind = np.clip(self.lastind, 0, len(self.xs) - 1)
         self.update_choice()
 
@@ -200,36 +231,51 @@ class PointBrowser(object):
 
         distances = np.hypot(x - self.xs[event.ind], y - self.ys[event.ind])
         indmin = distances.argmin()
-        dataind = event.ind[indmin]
+        self.lastind = event.ind[indmin]
 
-        self.lastind = dataind
         self.update_choice()
 
     def update_choice(self):
         if self.lastind is None:
             return
-        dataind = self.lastind
-
-        data_at_dataind = self.decoded_data[dataind] if self.show_cycle == self.n_phases else self.raw_data[dataind, ..., self.show_cycle]
-        for n_axis, _ in enumerate(self.other_axes):
-            self.detail_data_3d[n_axis] = data_at_dataind[n_axis]
+        self.slices = self.intermediate_microstructures[self.lastind].spatial_shape[self.current_dim]
+        if self.current_slice_number >= self.slices:
+            self.current_slice_number = self.slices // 2
 
         self.selected.set_visible(True)
-        self.selected.set_data(self.xs[dataind], self.ys[dataind])
+        self.selected.set_data(self.xs[self.lastind], self.ys[self.lastind])
+        # if self.last_microstructure.has_orientations:
+        #     if 'z_' in self.ori_views[self.n_ori_view][0] or 'rho' in self.ori_views[self.n_ori_view][0]:
+        #         self.selected.set(norm=matplotlib.colors.Normalize(-1, 1), cmap='seismic')
 
-        self.text_choice.set_text('selected: %d' % self.xs[dataind])
-        if self.show_cycle == self.n_phases:
-            if self.n_phases == 1:
-                self.text_cycle.set_text('rounded ms')
-            else:
+        if self.last_microstructure.has_orientations:
+            self.text_view.set_text(self.ori_views[self.n_ori_view][0])
+        if self.last_microstructure.has_phases and self.last_microstructure.n_phases > 1:
+            if self.show_cycle == self.last_microstructure.n_phases:
                 self.text_cycle.set_text('max phase')
-        else:
-            self.text_cycle.set_text(f'phase {self.show_cycle}')
+            else:
+                self.text_cycle.set_text(f'phase {self.show_cycle}')
         self.fig.canvas.draw()
         self.update_scroll()
 
     def update_scroll(self):
-        for n_axis, im in enumerate(self.ims):
-            im.set_data(self.detail_data_3d[n_axis][:, :, self.ind])
-            im.axes.figure.canvas.draw()
-        self.text_scroll.set_text('slice {} of {}'.format(self.ind + 1, self.slices))
+        for im in self.ims:
+            im.set_data(self.get_relevant_slice(self.intermediate_microstructures[self.lastind]))
+            if self.last_microstructure.has_orientations and (
+                'z_' in self.ori_views[self.n_ori_view][0]
+                or 'rho' in self.ori_views[self.n_ori_view][0]
+            ):
+                im.set(norm=matplotlib.colors.Normalize(-1, 1), cmap='seismic')
+        if self.last_microstructure.has_orientations and self.original_ms is not None:
+            self.og_img.set_data(self.ori_views[self.n_ori_view][1](self.original_ms.get_orientation_field().numpy()))
+            if self.last_microstructure.has_orientations and (
+                'z_' in self.ori_views[self.n_ori_view][0]
+                or 'rho' in self.ori_views[self.n_ori_view][0]
+            ):
+                self.og_img.set(norm=matplotlib.colors.Normalize(-1, 1), cmap='seismic')
+        self.text_choice.set_text('selected: %d' % self.xs[self.lastind])
+        if self.intermediate_microstructures[self.lastind].is_3D:
+            self.text_scroll.set_text(
+                f'slice {self.current_slice_number + 1} of {self.slices}'
+            )
+        self.fig.canvas.draw()

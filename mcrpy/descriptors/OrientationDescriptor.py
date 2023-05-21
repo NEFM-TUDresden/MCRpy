@@ -15,18 +15,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from .characterize import characterize, save_characterization
-from .reconstruct import reconstruct, save_convergence_data
-from .match import match
-from .merge import merge
-from .interpolate import interpolate
-from .view import view
-from .smooth import smooth
-from .src.Settings import CharacterizationSettings, ReconstructionSettings, MatchingSettings
-from .src.fileutils import load
-from .src.Microstructure import Microstructure
 
+from mcrpy.descriptors.Descriptor import Descriptor
 
-__version__ = "0.2.0"
-__author__ = 'Paul Seibert'
-__credits__ = 'Technische Universitaet Dresden'
+class OrientationDescriptor(Descriptor):
+    pass

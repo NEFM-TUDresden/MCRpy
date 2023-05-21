@@ -30,10 +30,12 @@ from mcrpy.src import descriptor_factory
 from mcrpy.src import loader
 from mcrpy.src import log
 from mcrpy.src import fileutils
+from mcrpy.src.Microstructure import Microstructure
 from mcrpy.descriptors.Descriptor import Descriptor
+from mcrpy.src.Symmetry import symmetries, Symmetry
 
 @log.log_this
-def view_generic_pickle(data: Dict, save_as: str = None, original_ms: str = None):
+def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstructure = None):
     if not isinstance(data, dict):
         raise NotImplementedError('Only pickles that contain dictionaries can be viewed.')
     if save_as is not None:
@@ -41,42 +43,57 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: str = None
     logging.info(f'Data contains keys {data.keys()}')
     if 'scatter_data' in data and 'raw_data' in data:
         view_convergence_data(data, original_ms)
-    for k, v in data.items():
-        try:
+    else:
+        for k, v in data.items():
+            # try:
             loader.load_plugins([f'mcrpy.descriptors.{k}' ])
             visualize = descriptor_factory.get_visualization(k)
             visualize(v, descriptor_type=k, 
                     save_as=f'{save_as[:-4]}_{k}.png' if save_as is not None else None)
-        except Exception as e:
-            logging.error(f'Error plotting {k}')
-    logging.info('done visualizations')
+            # except Exception as e:
+            #     logging.error(f'Error plotting {k}')
+        logging.info('done visualizations')
 
 @log.log_this
-def view_convergence_data(convergence_data: Dict[str, np.ndarray], original_ms: np.ndarray = None):
+def view_convergence_data(convergence_data: Dict[str, np.ndarray], original_ms: Microstructure = None):
     """View a convergence_data file."""
     from mcrpy.src.point_browser import PointBrowser
 
     scatter_data = convergence_data['scatter_data'].astype(np.float32)
-    raw_data = convergence_data['raw_data'].astype(np.float32).clip(0, 1)
-    logging.warning('Clipped values of MS to [0, 1] automatically')
-    line_datas = {'Cost': convergence_data['line_data']
-            } if 'line_data' in convergence_data else None
-    PointBrowser(scatter_data, raw_data, line_datas, original_ms=original_ms, log_axis=True)
+    raw_data = convergence_data['raw_data']
+    line_datas = {'Cost': convergence_data['line_data']}
+    settings = convergence_data.get('settings', None)
+    PointBrowser(scatter_data, raw_data, line_datas, original_ms=original_ms, log_axis=True, settings=settings)
 
 @log.log_this
-def view_microstructure(x: np.ndarray, save_as: str = None, axis: bool = True):
+def view_microstructure(ms: Microstructure, save_as: str = None, axis: bool = True, cmap: str = 'cividis', symmetry: Symmetry = None):
+    import matplotlib
     import matplotlib.pyplot as plt
-    if len(x.shape) == 5:
-        logging.warning('legacy encoding encountered - decoding it')
-        x = fileutils.decode_ms(x)
-    if len(x.shape) == 2:
-        plt.figure(figsize=(3, 3))
-        plt.imshow(x, cmap='cividis')
+    if ms.is_2D:
+        import tensorflow as tf
+        if ms.has_phases:
+            x = ms.decode_phases()
+        else:
+            x = ms.ori.numpy()[0] if symmetry is None else symmetry.to_ipf(ms.ori)[0]
+        # matplotlib.rcParams.update({
+        #     "pgf.texsystem":"pdflatex",
+        #     'font.family': 'serif',
+        #     'font.size': 12,
+        #     'figure.titlesize': 'medium',
+        #     'text.usetex':'True',
+        #     'pgf.rcfonts':'False',
+        #     "pgf.preamble": r"\usepackage{amsmath}\usepackage{amsfonts}\usepackage{mathrsfs}"
+        #     })
         if axis:
+            plt.figure(figsize=(2.5, 2.5))
+            if ms.has_phases:
+                plt.imshow(x, cmap=cmap)
+            else:
+                plt.imshow(x)
             plt.title(r'$M_{ij}$')
             plt.xlabel(r'$i$ in Px')
             plt.ylabel(r'$j$ in Px')
-            x_max, y_max = x.shape
+            x_max, y_max = x.shape[0], x.shape[1]
             xticks = [0, x_max // 2 - 1, x_max - 1]
             yticks = [0, y_max // 2 - 1, y_max - 1]
             plt.gca().set_xticks(xticks)
@@ -85,29 +102,31 @@ def view_microstructure(x: np.ndarray, save_as: str = None, axis: bool = True):
             plt.gca().set_yticklabels(reversed([y_i + 1 for y_i in yticks]))
             plt.tight_layout()
         else:
-            plt.axis('off')
-            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01, hspace=0, wspace=0)
+            sizes = np.shape(ms)
+            fig = plt.figure()
+            fig.set_size_inches(1, 1, forward = False)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            if ms.has_phases:
+                ax.imshow(x, cmap=cmap)
+            else:
+                ax.imshow(x)
         if save_as:
-            plt.savefig(save_as, dpi=600, bbox_inches='tight', pad_inches=0)
+            if axis:
+                plt.savefig(save_as, dpi=600, bbox_inches='tight', pad_inches=0)
+            else:
+                plt.savefig(save_as, dpi=sizes[0])
         else:
             plt.show()
         plt.close()
-    elif len(x.shape) == 3:
+    elif ms.is_3D:
         if save_as is None:
-            raise ValueError('3D microstructures must be saved.')
+            raise ValueError('3D microstructures must be saved in order to view them.')
         vtk_filename = f'{save_as[:-4]}.vtr'
         if os.path.isfile(vtk_filename):
             os.remove(vtk_filename)
-        logging.info('Exporting to {vtk_filename}')
-        from pyevtk.hl import gridToVTK
-        if len(x.shape) == 2:
-            x = x.reshape(tuple([*x.shape] + [1]))
-        if not len(x.shape) == 3:
-            raise ValueError(f'x has shape {x.shape}, but should be 2- or 3-dimensional.')
-        coords_x = np.arange(0, x.shape[0] + 1)
-        coords_y = np.arange(0, x.shape[1] + 1)
-        coords_z = np.arange(0, x.shape[2] + 1)
-        gridToVTK(vtk_filename[:-4], coords_x, coords_y, coords_z, cellData = {'phase_ids': x})
+        ms.to_paraview(vtk_filename)
         try:
             subprocess.run(['paraview', vtk_filename]) 
         except Exception:
@@ -127,32 +146,37 @@ def main(args):
     args.logfile_additives = ''
     log.setup_logging(target_folder, args)
     save_as = args.infile if args.savefig else None
+    if args.symmetry is not None and not isinstance(args.symmetry, Symmetry):
+        assert args.symmetry in symmetries
+        args.symmetry = symmetries[args.symmetry]
 
     if args.infile.endswith('.pickle'):
         with open(args.infile, 'rb') as f:
             data = pickle.load(f)
-        # view_generic_pickle(args.infile, save_as, original_ms=args.original_ms)
+        if save_as and not isinstance(data, Microstructure):
+            save_as = f'{save_as[:-7]}_D.png'
     elif args.infile.endswith('.npy'):
         save_as = f'{save_as[:-4]}_MS.png' if save_as else None
-        data = np.load(args.infile)
-        # view_microstructure(args.infile, save_as)
+        data = Microstructure.from_npy(args.infile)
     else:
         raise NotImplementedError('Filetype not supported')
 
     if args.original_ms is not None:
         if not os.path.isfile(args.original_ms):
             raise ValueError('Provided original_ms {original_ms}, but file does not exist.')
-        args.original_ms = np.load(args.original_ms)
+        args.original_ms = Microstructure.from_npy(args.original_ms)
 
-    view(data, save_as=save_as, original_ms=args.original_ms)
+    view(data, save_as=save_as, original_ms=args.original_ms, axis=not args.noaxis, cmap=args.cmap, symmetry = args.symmetry)
 
 def view(
         data: Union[np.ndarray, Dict[str, Any]],
         save_as: str = None,
-        original_ms: np.ndarray = None,
-        axis: bool = True):
-    if isinstance(data, np.ndarray):
-        view_microstructure(data, save_as, axis=axis)
+        original_ms: Microstructure = None,
+        axis: bool = True,
+        cmap: str = 'cividis',
+        symmetry: Symmetry = None):
+    if isinstance(data, Microstructure):
+        view_microstructure(data, save_as, axis=axis, cmap=cmap, symmetry=symmetry)
     elif isinstance(data, dict):
         view_generic_pickle(data, save_as, original_ms)
     else:
@@ -163,11 +187,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('infile', type=str)
     parser.add_argument('--original_ms', type=str, default=None)
+    parser.add_argument('--cmap', type=str, default='cividis')
+    parser.add_argument('--symmetry', type=str, help='Symmetry of the microstructure if orientations are considered. Default is None.', default=None)
     parser.add_argument('--logfile_name', type=str, default='logfile')
     parser.add_argument('--logging_level', type=int, default=logging.INFO)
     parser.add_argument('--logfile_date', dest='logfile_date', action='store_true')
     parser.set_defaults(logfile_date=False)
     parser.add_argument('--savefig', dest='savefig', action='store_true')
     parser.set_defaults(savefig=False)
+    parser.add_argument('--noaxis', dest='noaxis', action='store_true')
+    parser.set_defaults(noaxis=False)
     args = parser.parse_args()
     main(args)

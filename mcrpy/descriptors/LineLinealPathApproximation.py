@@ -27,7 +27,7 @@ from mcrpy.descriptors.Descriptor import make_image_padder
 from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
-class LinealPathApproximation(PhaseDescriptor):
+class LineLinealPathApproximation(PhaseDescriptor):
     is_differentiable = True
 
     @staticmethod
@@ -42,7 +42,7 @@ class LinealPathApproximation(PhaseDescriptor):
         Limit is from center to outer, like in correlations, i.e. a limit of 4 implies a
         symmetric mask width of 7"""
         H, W = desired_shape_2d
-        limit_linealpath_to = limit_to * 2 + 1
+        limit_linealpath_to = limit_to * 2
         H_conv = limit_linealpath_to
         W_conv = limit_linealpath_to
         z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
@@ -50,72 +50,71 @@ class LinealPathApproximation(PhaseDescriptor):
         a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
         b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
 
-        tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
+        tile_img_x = make_image_padder(min(W_conv, W) - 1, 0)
+        tile_img_y = make_image_padder(0, min(H_conv, H) - 1)
 
         @tf.function
-        def make_dense_filters() -> tf.Tensor:
+        def make_dense_filters_heightm1() -> tf.Tensor:
             """Make filters for lineal path function. First diagonals and straight lines, then 
             uses Bresenham line algorithm in the first octant, then swaps x and y for
             the second octant and finally mirrors y for the remainder. Surrounded by loop
             over line length. Future work: try Xiaolin Wu line algorithm."""
             in_channels = 1
-            out_channels = sum((i - 1) * 2 for i in range(3, limit_linealpath_to + 1, 2)) + 1
-            filters = np.zeros((limit_linealpath_to, limit_linealpath_to, in_channels, out_channels), dtype=np.float32)
-            filters[0, 0, 0, 0] = 1
-            filter_index = 1
+            out_channels = len(range(3, limit_linealpath_to + 1, 2))
+            filters = np.zeros((limit_linealpath_to, 1, in_channels, out_channels), dtype=np.float32)
+            filter_index = 0
             for sublim in range(3, limit_linealpath_to + 1, 2):
                 start_filter_index = filter_index
-                center_index = sublim // 2
-                i_max = sublim - 1
-                for k in range(sublim):
-                    filters[k, k, 0, filter_index] = 1
-                    filters[k, i_max - k, 0, filter_index + 1] = 1
-                filter_index += 2
-                filters[center_index, :sublim, 0, filter_index] = 1
+                filters[:sublim, 0, 0, filter_index] = 1
                 filter_index += 1
-                filters[:sublim, center_index, 0, filter_index] = 1
-                filter_index += 1
-                for i in range(1, center_index):
-                    slope = i / center_index
-                    current_y = center_index - i
-                    current_x = 0
-                    filters[current_x, current_y, 0, filter_index] = 1
-                    filters[current_y, current_x, 0, filter_index + 1] = 1
-                    filters[current_x, i_max - current_y, 0, filter_index + 2] = 1
-                    filters[current_y, i_max - current_x, 0, filter_index + 3] = 1
-                    for current_x in range(1, i_max):
-                        current_y += slope
-                        if round(current_y - tol) == round(current_y + tol):
-                            filters[current_x, round(current_y), 0, filter_index] = 1
-                            filters[round(current_y), current_x, 0, filter_index + 1] = 1
-                            filters[current_x, i_max - round(current_y), 0, filter_index + 2] = 1
-                            filters[round(current_y), i_max - current_x, 0, filter_index + 3] = 1
-                        else:
-                            filters[current_x, round(current_y - tol), 0, filter_index] = 0.5
-                            filters[current_x, round(current_y + tol), 0, filter_index] = 0.5
-                            filters[round(current_y - tol), current_x, 0, filter_index + 1] = 0.5
-                            filters[round(current_y + tol), current_x, 0, filter_index + 1] = 0.5
-                            filters[current_x, i_max - round(current_y - tol), 0, filter_index + 2] = 0.5
-                            filters[current_x, i_max - round(current_y + tol), 0, filter_index + 2] = 0.5
-                            filters[round(current_y - tol), i_max - current_x, 0, filter_index + 3] = 0.5
-                            filters[round(current_y + tol), i_max - current_x, 0, filter_index + 3] = 0.5
-                    filter_index += 4
                 filters[:, :, :, start_filter_index:filter_index] /= sublim
             filters_tf = tf.cast(tf.constant(filters), tf.float64)
             return filters_tf
 
 
-        filters = make_dense_filters()
+
+        @tf.function
+        def make_dense_filters_width() -> tf.Tensor:
+            """Make filters for lineal path function. First diagonals and straight lines, then 
+            uses Bresenham line algorithm in the first octant, then swaps x and y for
+            the second octant and finally mirrors y for the remainder. Surrounded by loop
+            over line length. Future work: try Xiaolin Wu line algorithm."""
+            in_channels = 1
+            out_channels = len(range(3, limit_linealpath_to + 1, 2)) + 1
+            filters = np.zeros((1, limit_linealpath_to, in_channels, out_channels), dtype=np.float32)
+            filters[0, 0, 0, 0] = 1
+            filter_index = 1
+            for sublim in range(3, limit_linealpath_to + 1, 2):
+                start_filter_index = filter_index
+                filters[0, :sublim, 0, filter_index] = 1
+                filter_index += 1
+                filters[:, :, :, start_filter_index:filter_index] /= sublim
+            filters_tf = tf.cast(tf.constant(filters), tf.float64)
+            return filters_tf
+
+        # filters = make_dense_filters()
+        filters_w = make_dense_filters_width()
+        filters_h = make_dense_filters_heightm1()
 
         @tf.function
         def model(mg_input):
-            img_tiled = tile_img(mg_input)
-            img_convolved = tf.nn.conv2d(img_tiled, filters=filters,
-                    strides=[1, 1, 1, 1], padding='VALID')
+            # img_tiled = tile_img(mg_input)
+            # img_convolved = tf.nn.conv2d(img_tiled, filters=filters,
+            #         strides=[1, 1, 1, 1], padding='VALID')
+            img_tiled_h = tile_img_x(mg_input)
+            # print(img_tiled_h.shape)
+            img_convolved_h = tf.nn.conv2d(img_tiled_h, filters=filters_h, strides=[1, 1, 1, 1], padding='VALID')
+            # print(img_convolved_h.shape)
+            img_tiled_w = tile_img_y(mg_input)
+            # print(img_tiled_w.shape)
+            img_convolved_w = tf.nn.conv2d(img_tiled_w, filters=filters_w, strides=[1, 1, 1, 1], padding='VALID')
+            # print(img_convolved_w.shape)
+            img_convolved = tf.concat([img_convolved_h, img_convolved_w], axis=-1)
             img_thresholded = tf.nn.sigmoid((img_convolved - l_threshold_value) * threshold_steepness) * a + b
             img_reduced_x = tf.math.reduce_mean(img_thresholded, axis=1, keepdims=True)
             img_reduced_xy = tf.math.reduce_mean(img_reduced_x, axis=2, keepdims=True)
             return img_reduced_xy
+
         return model
 
     @staticmethod
@@ -124,7 +123,7 @@ class LinealPathApproximation(PhaseDescriptor):
             limit_to: int = None, 
             **kwargs):
         assert desired_descriptor_shape[-1] == np.product(desired_descriptor_shape)
-        current_descriptor_n = sum((i - 1) * 2 for i in range(3, 2*(limit_to + 1), 2)) + 1
+        current_descriptor_n = len(range(3, 2*limit_to, 2)) * 2 + 1
         desired_descriptor_n = desired_descriptor_shape[-1]
 
         if current_descriptor_n == desired_descriptor_n:
@@ -194,4 +193,4 @@ class LinealPathApproximation(PhaseDescriptor):
 
 
 def register() -> None:
-    descriptor_factory.register("LinealPathApproximation", LinealPathApproximation)
+    descriptor_factory.register("LineLinealPathApproximation", LineLinealPathApproximation)

@@ -17,7 +17,6 @@
 """
 from __future__ import annotations
 
-from abc import ABC
 from typing import List
 
 import numpy as np
@@ -25,24 +24,20 @@ import tensorflow as tf
 import scipy.optimize as sopt
 
 from mcrpy.optimizers.Optimizer import Optimizer
+from mcrpy.src.Microstructure import Microstructure
 
 class SPOptimizer(Optimizer):
     is_gradient_based = True
     is_vf_based = False
+    is_sparse = False
 
     def __init__(self,
                  max_iter: int = 100,
                  desired_shape_extended: tuple = None,
-                 np_dtype: np.dtype = None,
                  callback: callable = None):
         """ABC init for scipy optimizer. Subclasses simply specify self.optimizer_method and self.bounds."""
         self.max_iter = max_iter
         self.desired_shape_extended = desired_shape_extended
-        self.np_dtype = np_dtype
-        self.sp_options = {
-            'maxiter': self.max_iter,
-            'maxfun': self.max_iter,
-        }
         self.reconstruction_callback = callback
         self.current_loss = None
 
@@ -52,20 +47,24 @@ class SPOptimizer(Optimizer):
 
     def step(self, x: np.ndarray) -> List[np.ndarray]:
         """Perform a single step. Typecasting from np to tf and back needed to couple scipy optimizers with tf backprop."""
-        self.x.assign(
-            x.reshape(self.desired_shape_extended).astype(self.np_dtype))
-        loss, grads = self.call_loss(self.x)
+        self.ms.x.assign(
+            x.reshape(self.desired_shape_extended).astype(np.float64))
+        loss, grads = self.call_loss(self.ms)
         self.current_loss = loss
-        self.reconstruction_callback(self.n_iter, loss, *self.opt_var)
+        self.reconstruction_callback(self.n_iter, loss, self.ms)
         self.n_iter += 1
         return [field.numpy().astype(np.float64).flatten() for field in [loss, grads[0]]]
 
-    def optimize(self, x: tf.Tensor) -> int:
+    def optimize(self, ms: Microstructure, restart_from_niter: int = None) -> int:
         """Optimize."""
-        self.n_iter = 0
-        self.x = x
-        self.opt_var = [self.x]
-        initial_solution = self.x.numpy().astype(np.float64).flatten()
+        self.n_iter = 0 if restart_from_niter is None else restart_from_niter
+        sp_options = {
+            'maxiter': self.max_iter - self.n_iter,
+            'maxfun': self.max_iter - self.n_iter,
+        }
+        self.ms = ms
+        self.opt_var = [self.ms.x]
+        initial_solution = self.ms.x.numpy().astype(np.float64).flatten()
         resdd = sopt.minimize(fun=self.step, x0=initial_solution, jac=True, tol=0,
-                              method=self.optimizer_method, bounds=self.bounds, options=self.sp_options)
+                              method=self.optimizer_method, bounds=self.bounds, options=sp_options)
         return self.n_iter

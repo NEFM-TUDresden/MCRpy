@@ -20,15 +20,19 @@ from abc import ABC, abstractmethod
 
 import tensorflow as tf
 
+from mcrpy.src.Microstructure import Microstructure
+
 
 class Optimizer(ABC):
     """Basic representation of an optimizer."""
     current_loss = None
     is_gradient_based = True
     is_vf_based = False
+    is_sparse = False
+    swaps_pixels = False
 
     @abstractmethod
-    def optimize(self, x: tf.Tensor):
+    def optimize(self, ms: Microstructure, restart_from_niter: int = None):
         """Run optimization."""
         pass
 

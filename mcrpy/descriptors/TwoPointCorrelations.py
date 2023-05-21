@@ -18,57 +18,34 @@
 from __future__ import annotations
 
 import logging
+from typing import Tuple
 import tensorflow as tf
 import numpy as np
 
 from mcrpy.src import descriptor_factory
-from mcrpy.descriptors.Descriptor import Descriptor
+from mcrpy.descriptors.Descriptor import make_image_padder
+from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
-class TwoPointCorrelations(Descriptor):
+class TwoPointCorrelations(PhaseDescriptor):
     is_differentiable = True
 
     @staticmethod
     def make_singlephase_descriptor( 
             desired_shape_2d=(64, 64), 
             limit_to: int = 8, 
-            tf_dtype=tf.float64, 
             l_threshold_value=0.75, 
             threshold_steepness=10, 
             **kwargs) -> callable:
         H, W = desired_shape_2d
         H_conv = limit_to
         W_conv = limit_to
-        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf_dtype)
-        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf_dtype)
-        a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf_dtype)
-        b = tf.cast(- a * z_lower_bound, dtype=tf_dtype)
+        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
+        b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
 
-
-        @tf.function
-        def tile_img(img: tf.Tensor) -> tf.Tensor:
-            """Tile an image. Needed for periodic boundary conditions in convolution."""
-            _, h, w, _ = img.shape.as_list()
-            img_shape_2d = (h, w)
-            lim_height = min(H_conv, h)
-            lim_width = min(W_conv, w)
-            r_max = (lim_height, lim_width)
-
-            tiled_shape = np.array(img_shape_2d) + np.array(r_max)
-            h_desired = h + lim_height
-            w_desired = w + lim_width
-
-            pre_tiler = np.zeros((h_desired, h), dtype=np.int8)
-            for i in range(h_desired):
-                pre_tiler[i % h_desired, i % h] = 1
-            pre_tiler_tf = tf.cast(tf.constant(pre_tiler), tf_dtype)
-            post_tiler = np.zeros((w, w_desired), dtype=np.int8)
-            for i in range(w_desired):
-                post_tiler[i % w, i % w_desired] = 1
-            post_tiler_tf = tf.cast(tf.constant(post_tiler), tf_dtype)
-            img_tiled = tf.reshape(tf.linalg.matmul(pre_tiler_tf, tf.linalg.matmul(tf.reshape(img, img_shape_2d), post_tiler_tf)), [1] + [*tiled_shape] + [1])
-            return img_tiled
-
+        tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
 
         @tf.function
         def make_dense_filters() -> tf.Tensor:
@@ -77,7 +54,7 @@ class TwoPointCorrelations(Descriptor):
             n_entries = out_channels * 2 - 1
             filter_indices = np.zeros((n_entries, 4), dtype=np.int64)
             filter_values = np.zeros((n_entries), dtype=np.float64)
-            filter_denseshape = np.array([H_conv + 1, W_conv + 1, in_channels, out_channels], dtype=np.int64)
+            filter_denseshape = np.array([H_conv, W_conv, in_channels, out_channels], dtype=np.int64)
             entry_index = 0
             for i in range(H_conv):
                 for j in range(W_conv):
@@ -109,12 +86,12 @@ class TwoPointCorrelations(Descriptor):
                     entry_index += 1
 
             filter_indices_tf = tf.constant(filter_indices)
-            filter_values_tf = tf.cast(tf.constant(filter_values), tf_dtype)
+            filter_values_tf = tf.cast(tf.constant(filter_values), tf.float64)
             filter_denseshape_tf = tf.constant(filter_denseshape)
             filters_tf_unordered = tf.sparse.SparseTensor(filter_indices_tf, filter_values_tf, filter_denseshape_tf)
             filters_tf = tf.sparse.reorder(filters_tf_unordered) 
             filters_tf_dense = tf.sparse.to_dense(filters_tf)
-            filters_tf_dense = tf.cast(filters_tf_dense, tf_dtype)
+            filters_tf_dense = tf.cast(filters_tf_dense, tf.float64)
             return filters_tf_dense
 
         @tf.function
@@ -165,6 +142,7 @@ class TwoPointCorrelations(Descriptor):
             desired_descriptor_shape: Tuple[int] = None, 
             limit_to: int = None, 
             **kwargs):
+        # sourcery skip: for-append-to-extend, list-comprehension, use-itertools-product
         assert len(desired_descriptor_shape) == 1
         desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[0] - 0.25),
                 decimals=0).astype(int)

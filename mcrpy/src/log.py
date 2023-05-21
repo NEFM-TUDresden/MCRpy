@@ -38,7 +38,7 @@ def setup_logging(target_folder: str, args: argparse.Namespace):
     else:
         logfile_additives = '-' + time.asctime().replace(
                 ' ', '-').replace(':', '-') if args.logfile_date else ''
-        logging_filename = '{}{}.log'.format(args.logfile_name, logfile_additives)
+        logging_filename = f'{args.logfile_name}{logfile_additives}.log'
         logging_filepath = os.path.join(target_folder, logging_filename)
         logging.basicConfig(filename=logging_filepath,
                             format=logging_format, level=args.logging_level)

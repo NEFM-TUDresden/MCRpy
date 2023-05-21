@@ -18,21 +18,22 @@
 from __future__ import annotations
 
 import logging
+from typing import Tuple
 import tensorflow as tf
 import numpy as np
 
 from mcrpy.src import descriptor_factory
-from mcrpy.descriptors.Descriptor import Descriptor
+from mcrpy.descriptors.Descriptor import make_image_padder
+from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
-class LinealPath(Descriptor):
+class LinealPath(PhaseDescriptor):
     is_differentiable = False
 
     @staticmethod
     def make_singlephase_descriptor( 
             desired_shape_2d=(64, 64), 
             limit_to=4, 
-            tf_dtype=tf.float64, 
             l_threshold_value=0.75, 
             threshold_steepness=10, 
             tol=0.1,
@@ -44,36 +45,12 @@ class LinealPath(Descriptor):
         limit_linealpath_to = limit_to * 2 + 1
         H_conv = limit_linealpath_to
         W_conv = limit_linealpath_to
-        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf_dtype)
-        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf_dtype)
-        a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf_dtype)
-        b = tf.cast(- a * z_lower_bound, dtype=tf_dtype)
+        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
+        b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
 
-
-        @tf.function
-        def tile_img(img: tf.Tensor) -> tf.Tensor:
-            """Tile an image. Needed for periodic boundary conditions in convolution."""
-            _, h, w, _ = img.shape.as_list()
-            img_shape_2d = (h, w)
-            lim_height = min(H_conv, h)
-            lim_width = min(W_conv, w)
-            r_max = (lim_height, lim_width)
-
-            tiled_shape = np.array(img_shape_2d) + np.array(r_max)
-            h_desired = h + lim_height
-            w_desired = w + lim_width
-
-            pre_tiler = np.zeros((h_desired, h), dtype=np.int8)
-            for i in range(h_desired):
-                pre_tiler[i % h_desired, i % h] = 1
-            pre_tiler_tf = tf.cast(tf.constant(pre_tiler), tf_dtype)
-            post_tiler = np.zeros((w, w_desired), dtype=np.int8)
-            for i in range(w_desired):
-                post_tiler[i % w, i % w_desired] = 1
-            post_tiler_tf = tf.cast(tf.constant(post_tiler), tf_dtype)
-            img_tiled = tf.reshape(tf.linalg.matmul(pre_tiler_tf, tf.linalg.matmul(tf.reshape(img, img_shape_2d), post_tiler_tf)), [1] + [*tiled_shape] + [1])
-            return img_tiled
-
+        tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
 
         @tf.function
         def make_dense_filters() -> tf.Tensor:
@@ -124,17 +101,17 @@ class LinealPath(Descriptor):
                             filters[round(current_y + tol), i_max - current_x, 0, filter_index + 3] = 0.5
                     filter_index += 4
                 filters[:, :, :, start_filter_index:filter_index] /= sublim
-            filters_tf = tf.cast(tf.constant(filters), tf_dtype)
+            filters_tf = tf.cast(tf.constant(filters), tf.float64)
             return filters_tf
 
 
         filters = make_dense_filters()
 
         def model(mg_input):
-            img_tiled = tile_img(tf.constant(mg_input, dtype=tf_dtype))
+            img_tiled = tile_img(tf.constant(mg_input, dtype=tf.float64))
             img_convolved = tf.nn.conv2d(img_tiled, filters=filters,
                     strides=[1, 1, 1, 1], padding='VALID')
-            img_thresholded = tf.cast(img_convolved > 0.99, tf_dtype)
+            img_thresholded = tf.cast(img_convolved > 0.99, tf.float64)
             img_thresholded = tf.nn.sigmoid((img_convolved - l_threshold_value) * threshold_steepness) * a + b
             img_reduced_x = tf.math.reduce_mean(img_thresholded, axis=1, keepdims=True)
             img_reduced_xy = tf.math.reduce_mean(img_reduced_x, axis=2, keepdims=True)

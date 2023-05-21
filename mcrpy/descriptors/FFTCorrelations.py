@@ -16,50 +16,42 @@
    limitations under the License.
 """
 from __future__ import annotations
-
 from typing import Tuple
 
-import pymks
 import numpy as np
-from sklearn.pipeline import Pipeline
-
+import tensorflow as tf
 
 from mcrpy.src import descriptor_factory
-from mcrpy.descriptors.Descriptor import Descriptor
+from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
-class FFTCorrelations(Descriptor):
-    is_differentiable = False
+class FFTCorrelations(PhaseDescriptor):
+    is_differentiable = True
 
     @staticmethod
     def make_singlephase_descriptor(
-            only_black_auto: bool = True,
-            desired_shape_2d: Tuple[int] = (64, 64),
-            limit_to: int = 8,
+            desired_shape_2d=(64, 64), 
+            limit_to: int = None, 
             **kwargs) -> callable:
-        phases = (0, 1)
-        n_phases = 2
-        min_phase = min(phases)
-        max_phase = max(phases)
-        correlations = [[1, 1]] if only_black_auto else [
-            [min_phase, p] for p in phases]
-        model = Pipeline(steps=[
-            ('discretize', pymks.PrimitiveTransformer(
-                n_state=n_phases, min_=min_phase, max_=max_phase)),
-            ('correlations', pymks.TwoPointCorrelation(
-                periodic_boundary=True,
-                cutoff=limit_to - 1,
-                correlations=correlations
-            ))
-        ])
 
-        desired_pymks_shape = tuple([1] + list(desired_shape_2d))
+        mask = np.zeros(desired_shape_2d)
+        i_center = desired_shape_2d[0] // 2
+        j_center = desired_shape_2d[1] // 2
+        mask[i_center - limit_to + 1:i_center+limit_to, j_center - limit_to + 1:j_center+limit_to] = 1
+        mask = mask.astype(bool)
+        mask = tf.constant(mask, dtype=tf.bool)
+        descriptor_shape = (limit_to * 2 - 1,) *  2
 
-        def compute_descriptor(x: np.ndarray) -> np.ndarray:
-            x_data = x.reshape(desired_pymks_shape)
-            x_stats = model.transform(x_data).persist()
-            x_stats = x_stats.compute()
-            return x_stats
+        @tf.function
+        def compute_descriptor(microstructure: tf.Tensor) -> tf.Tensor:
+            microstructure = tf.reshape(microstructure, desired_shape_2d)
+            ms_fourier = tf.signal.fft2d(tf.cast(microstructure, tf.complex128))
+            ms_conj = tf.math.conj(ms_fourier)
+            fourier_coefficients = ms_fourier * ms_conj / tf.cast(tf.size(microstructure), tf.complex128)
+            real_coefficients = tf.signal.ifft2d(fourier_coefficients)
+            real_coefficients = tf.signal.fftshift(real_coefficients)
+            selected_components = tf.reshape(tf.boolean_mask(tf.cast(real_coefficients, tf.float64), mask), descriptor_shape)
+            return selected_components
         return compute_descriptor
 
     @staticmethod
@@ -67,10 +59,8 @@ class FFTCorrelations(Descriptor):
             desired_descriptor_shape: Tuple[int] = None, 
             limit_to: int = None, 
             **kwargs):
-        assert len(desired_descriptor_shape) == 4
-        assert desired_descriptor_shape[0] == 1
-        assert desired_descriptor_shape[-1] == 1
-        assert desired_descriptor_shape[1] == desired_descriptor_shape[2]
+        assert len(desired_descriptor_shape) == 2
+        assert desired_descriptor_shape[1] == desired_descriptor_shape[0]
         desired_limit_to = desired_descriptor_shape[1] // 2 + 1
 
         if limit_to == desired_limit_to:
@@ -80,8 +70,8 @@ class FFTCorrelations(Descriptor):
         smaller_limit_to = min(limit_to, desired_limit_to)
         limit_delta = larger_limit_to - smaller_limit_to
         larger_n_elements = larger_limit_to * 2 - 1
-        mask = np.zeros((1, larger_n_elements, larger_n_elements, 1), dtype=np.bool8)
-        mask[:, limit_delta:-limit_delta, limit_delta:-limit_delta, :] = True
+        mask = np.zeros((larger_n_elements, larger_n_elements), dtype=np.bool8)
+        mask[limit_delta:-limit_delta, limit_delta:-limit_delta] = True
         return mask, limit_to > desired_limit_to
 
     @classmethod
@@ -92,7 +82,7 @@ class FFTCorrelations(Descriptor):
             descriptor_type: str = None,
             mg_level: int = None,
             n_phase: int = None):
-        s2 = descriptor_value[0, :, :, 0]
+        s2 = descriptor_value[:, :]
         height, width = s2.shape
         if height != width:
             raise NotImplementedError('Non-square FFTCorrelations not implemented')
@@ -107,7 +97,6 @@ class FFTCorrelations(Descriptor):
         ax.set_yticks(yticks)
         ax.set_xticklabels([-limit_to + 1, 0, limit_to - 1])
         ax.set_yticklabels(reversed([-limit_to + 1, 0, limit_to - 1]))
-
 
 
 def register() -> None:

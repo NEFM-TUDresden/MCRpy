@@ -26,14 +26,14 @@ import tensorflow as tf
 
 from mcrpy.src import descriptor_factory
 from mcrpy.descriptors.Descriptor import make_image_padder
-from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
+from mcrpy.descriptors.MultiPhaseDescriptor import MultiPhaseDescriptor
 
 
-class GramMatrices(PhaseDescriptor):
+class MultiPhaseGramMatrices(MultiPhaseDescriptor):
     is_differentiable = True
 
     @staticmethod
-    def make_singlephase_descriptor(
+    def make_multiphase_descriptor(
             desired_shape_2d: tuple = (64, 64),
             nl_method: str = 'relu',
             filename: str = None,
@@ -41,6 +41,7 @@ class GramMatrices(PhaseDescriptor):
             periodic: bool = True,
             limit_to: int = 16,
             include_threepoint: bool = True,
+            n_phases: int = None,
             **kwargs):
         """Makes a VGG-19 based differentiable Gram matrix descriptor. 
         The weights are normalized as in
@@ -73,8 +74,15 @@ class GramMatrices(PhaseDescriptor):
         regarded as a part of the descriptor."""
         H, W = desired_shape_2d
 
-        if limit_to < 16:
-            raise ValueError(f'limit_to is {limit_to} and should not be less than 16')
+        # if limit_to < 16:
+        #     raise ValueError(f'limit_to is {limit_to} and should not be less than 16')
+        # if H != W:
+        #     raise NotImplementedError()
+        if n_phases is None:
+            raise ValueError('n_phases is not given, but is required for this descriptor')
+
+        # check how many tilings needed
+        n_tilings = int(32 / min(H, W) + 0.01)
 
         # read weights
         if filename is None:
@@ -112,6 +120,11 @@ class GramMatrices(PhaseDescriptor):
 
         periodicise_img  = make_image_padder(2, 2)
 
+        def make_tiling_layer() -> callable:
+            def inner(img: tf.Tensor):
+                return periodicise_img(img)
+            return inner
+
         def make_conv2d_layer(weights: tf.Tensor, strides: tf.Tensor = [1, 1, 1, 1]) -> callable:
             """Make a 2D convolution layer with possibility to use periodic boundary conditions, currently not available in std tf."""
             if periodic:
@@ -135,13 +148,33 @@ class GramMatrices(PhaseDescriptor):
                 np.zeros((1, 1, 1, 3), dtype=np.float64) + 255)
             subtraction_biases = tf.constant(-mean_values)
 
-            @tf.function
-            def encoding_layer(ms_in: tf.Tensor) -> tf.Tensor:
-                ms_extended = tf.nn.conv2d(
-                    ms_in, extension_filters, strides=(1, 1), padding='VALID')
-                ms_shifted = tf.nn.bias_add(
-                    ms_extended, subtraction_biases)
-                return ms_shifted
+            if n_phases == 2:
+                @tf.function
+                def encoding_layer(ms_in: tf.Tensor) -> tf.Tensor:
+                    ms_p1 = tf.expand_dims(ms_in[:, :, :, 1], -1)
+                    ms_extended = tf.nn.conv2d(
+                        ms_p1, extension_filters, strides=(1, 1), padding='VALID')
+                    ms_shifted = tf.nn.bias_add(
+                        ms_extended, subtraction_biases)
+                    return ms_shifted
+            elif n_phases == 3:
+                @tf.function
+                def encoding_layer(ms_in: tf.Tensor) -> tf.Tensor:
+                    ms_shifted = tf.nn.bias_add(
+                        ms_in*255, subtraction_biases)
+                    return ms_shifted
+                return encoding_layer
+            elif n_phases == 4:
+                @tf.function
+                def encoding_layer(ms_in: tf.Tensor) -> tf.Tensor:
+                    ms_except_p0 = ms_in[:, :, :, 1:]
+                    ms_shifted = tf.nn.bias_add(
+                        ms_except_p0*255, subtraction_biases)
+                    return ms_shifted
+                return encoding_layer
+            else:
+                raise NotImplementedError(f'This descriptor is not implemented for {n_phases} phases')
+
             return encoding_layer
 
         def make_nl_layer(bias: tf.Tensor, nl_method: str = 'relu') -> callable:
@@ -216,8 +249,12 @@ class GramMatrices(PhaseDescriptor):
 
             return l_gram_diag
 
-        mg_input = tf.keras.Input(shape=(H, W, 1), dtype=tf.float64)
-        mg_enc = tf.keras.layers.Lambda(make_encoding_layer())(mg_input)
+        mg_input = tf.keras.Input(shape=(H, W, n_phases), dtype=tf.float64)
+        if n_tilings < 1:
+            mg_tiled = mg_input
+        for n_tiling in range(n_tilings):
+            mg_tiled = tf.keras.layers.Lambda(make_tiling_layer())(mg_input)
+        mg_enc = tf.keras.layers.Lambda(make_encoding_layer())(mg_tiled)
         mg_c1 = tf.keras.layers.Lambda(
             make_conv2d_layer(transpose(weights[0])))(mg_enc)
         mg_n1 = tf.keras.layers.Lambda(make_nl_layer(
@@ -326,4 +363,4 @@ class GramMatrices(PhaseDescriptor):
 
 
 def register() -> None:
-    descriptor_factory.register("GramMatrices", GramMatrices)
+    descriptor_factory.register("MultiPhaseGramMatrices", MultiPhaseGramMatrices)

@@ -17,16 +17,15 @@
 """
 from __future__ import annotations
 
-from abc import ABC
-
-import numpy as np
-import tensorflow as tf
+from mcrpy.src.profile import maybe_trace
 
 from mcrpy.optimizers.Optimizer import Optimizer
+from mcrpy.src.Microstructure import Microstructure
 
 class TFOptimizer(Optimizer):
     is_gradient_based = True
     is_vf_based = False
+    is_sparse = False
 
     def __init__(self,
             max_iter: int = 100,
@@ -38,18 +37,20 @@ class TFOptimizer(Optimizer):
 
         assert self.reconstruction_callback is not None
 
+    @maybe_trace("step")
     def step(self):
         """Perform one step."""
-        loss, grads = self.call_loss(*self.opt_var)
+        loss, grads = self.call_loss(self.ms)
         self.current_loss = loss
-        self.reconstruction_callback(self.n_iter, loss, *self.opt_var)
+        self.reconstruction_callback(self.n_iter, loss, self.ms)
         self.opt.apply_gradients(zip(grads, self.opt_var))
         self.n_iter += 1
 
-    def optimize(self, x: tf.Tensor) -> int:
+    def optimize(self, ms: Microstructure, restart_from_niter: int = None) -> int:
         """Optimization loop."""
-        self.n_iter = 0
-        self.opt_var = [x]
+        self.n_iter = 0 if restart_from_niter is None else restart_from_niter
+        self.ms = ms
+        self.opt_var = [ms.x]
         while self.n_iter < self.max_iter:
             self.step()
         return self.n_iter

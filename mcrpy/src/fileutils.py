@@ -15,9 +15,11 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import logging
 import os
 import pickle
@@ -27,9 +29,10 @@ import subprocess
 from typing import List, Dict, Union
 
 import numpy as np
+from mcrpy.src.Microstructure import Microstructure
 
 
-def expand_folder_name(folder_name: str, intermediate_folders: List[str] = []) -> str:
+def expand_folder_name(folder_name: str, intermediate_folders: List[str] = None) -> str:
     """Expand folder name by adding the current working directory and the intermediate folders.
     If the current working directory is already given in folder_name, then nothing is done.
     Examples:
@@ -39,6 +42,8 @@ def expand_folder_name(folder_name: str, intermediate_folders: List[str] = []) -
         and expand_folder_name('TestFolder', intermediate_folders=['TiAl', 'Synthetic'])
         returns /home/username/Dokumente/PSPLinkages/structure-characterisation/TiAl/Synthetic/TestFolder
     Handles ../ in fildername, unlike os.path.abspath """
+    if intermediate_folders is None:
+        intermediate_folders = []
     base_folder = os.getcwd()
     if base_folder in folder_name:
         return folder_name
@@ -53,8 +58,9 @@ def expand_folder_name(folder_name: str, intermediate_folders: List[str] = []) -
 def create_target_folder(args: argparse.Namespace) -> str:
     """Create target folder where all results are stored."""
     if args.data_folder is None:
-        args.data_folder = 'DefaultFolder {}'.format(
-            time.asctime()).replace(' ', '-').replace(':', '-')
+        args.data_folder = f'DefaultFolder {time.asctime()}'.replace(
+            ' ', '-'
+        ).replace(':', '-')
     target_folder = expand_folder_name(args.data_folder)
     os.makedirs(target_folder, exist_ok=True)
     return target_folder
@@ -62,82 +68,22 @@ def create_target_folder(args: argparse.Namespace) -> str:
 
 def copy_ms_to_target(target_folder: str, args: argparse.Namespace) -> str:
     """Copy microstructure to target folder."""
-    microstructure_copyto = os.path.join(
-        target_folder, os.path.split(args.microstructure_filename)[1])
-    try:
-        shutil.copy(args.microstructure_filename, microstructure_copyto)
-    except shutil.SameFileError:
-        pass
-    return microstructure_copyto
+    microstructures_copyto = []
+    for microstructure_filename in args.microstructure_filenames:
+        microstructure_copyto = os.path.join(
+            target_folder, os.path.split(microstructure_filename)[1])
+        with contextlib.suppress(shutil.SameFileError):
+            shutil.copy(microstructure_filename, microstructure_copyto)
+        microstructures_copyto.append(microstructure_copyto)
+    return microstructures_copyto
 
-def load(filename: str) -> Union[np.ndarray, Dict]:
+def load(filename: str, use_multiphase: bool = False) -> Union[np.ndarray, Dict]:
     if filename.endswith('.npy'):
-        return read_ms(filename)
+        return Microstructure.from_npy(filename, use_multiphase=use_multiphase)
     elif filename.endswith('.pickle'):
-        return read_descriptor(descriptor_filename)
+        with open(filename, 'rb') as f:
+            data = pickle.load(f)
+        return data
     else:
-        raise ValueError('Can only load microstructures as npy-files and descriptors as pickle-files. ' +
+        raise ValueError('Can only load microstructures as npy- or pickle-files and descriptors as pickle-files. ' +
                 f'The given filename {filename} is neither.')
-
-
-def read_ms(microstructure_filename: str) -> np.ndarray:
-    """Return a microstructure given the filename."""
-    microstructure = None
-    if microstructure_filename.endswith('.npy'):
-        ms_raw = np.load(microstructure_filename)
-        if np.min(ms_raw) < -0.1:
-            logging.warning(f'Assuming old decoding, adding 0.5 to MS')
-            ms_raw += 0.5
-        microstructure = np.round(ms_raw).astype(np.int8)
-    elif microstructure_filename.endswith('.pickle'):
-        import pickle
-        with open(microstructure_filename, 'rb') as f:
-            convergence_data = pickle.load(f)
-        if 'og_img' not in convergence_data.keys():
-            raise ValueError('There is no microstructure under the key ' + 
-                    'og_ms in this pickle-file. Maybe you meant to open '+ 
-                    'a npy-file?')
-        microstructure = convergence_data['og_img']
-    else:
-        raise NotImplementedError
-    return microstructure
-
-def read_descriptor(descriptor_filename: str) -> Dict:
-    with open(descriptor_filename, 'rb') as f:
-        descriptor = pickle.load(f)
-    return descriptor
-
-def encode_ms(microstructure: np.ndarray, use_multiphase: bool = True, grey_values: bool = False) -> np.ndarray:
-    if grey_values:
-        microstructure = (microstructure.astype(np.float64) - np.min(microstructure)) / (np.max(microstructure) - np.min(microstructure))
-    if use_multiphase and not grey_values:
-        phases = np.unique(microstructure)
-        logging.info(f'encoding phases {phases}')
-        n_phases = len(phases)
-        if not all(np.array([i for i in range(len(phases))]) == phases):
-            raise ValueError('Phases should be numbered consecutively, starting at 0.')
-        encoded_ms = np.zeros(tuple([*microstructure.shape, n_phases]), np.int8)
-        for phase in phases:
-            encoded_ms[..., phase] = microstructure == phase
-        return encoded_ms
-    else:
-        return microstructure.reshape(tuple(
-            [*microstructure.shape, 1])).astype(np.float32)
-
-def decode_ms(microstructure: np.ndarray) -> np.ndarray:
-    if microstructure.shape[0] == 1:
-        microstructure = microstructure[0]
-    n_phases = microstructure.shape[-1]
-    ms_decoded_shape = microstructure.shape[:-1]
-    if n_phases == 1:
-        return np.round(microstructure).reshape(ms_decoded_shape)
-    n_pixels = np.product(microstructure.shape[:-1])
-    ms_reshaped = microstructure.reshape((n_pixels, -1))
-    ms_decoded = np.zeros(n_pixels)
-    for pixel in range(n_pixels):
-        ms_decoded[pixel] = np.argmax(ms_reshaped[pixel])
-    return ms_decoded.reshape(ms_decoded_shape)
-
-if __name__ == "__main__":
-    ms = np.array([[0, 2], [1, 1]], np.int8)
-    print(encode_ms(ms))

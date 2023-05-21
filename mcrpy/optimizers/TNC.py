@@ -31,15 +31,15 @@ class TNC(SPOptimizer):
                  max_iter: int = 100,
                  callback: callable = None,
                  desired_shape_extended: tuple = None,
-                 np_dtype: np.dtype = None,
+                 use_orientations: bool = False,
                  **kwargs):
 
-        super().__init__(max_iter=max_iter, callback=callback, desired_shape_extended=desired_shape_extended, np_dtype=np_dtype)
+        super().__init__(max_iter=max_iter, callback=callback, desired_shape_extended=desired_shape_extended)
         self.optimizer_method = 'TNC'
         bounds_shape = (np.product(desired_shape_extended), 2)
         self.bounds = np.zeros(bounds_shape)
-        self.bounds[:, 0] = 0
-        self.bounds[:, 1] = 1
+        self.bounds[:, 0] = None if use_orientations else 0
+        self.bounds[:, 1] = None if use_orientations else 1
 
 
 def register() -> None:

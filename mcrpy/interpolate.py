@@ -42,7 +42,7 @@ def read_descriptors(args: argparse.Namespace) -> List[Dict[str, np.ndarray]]:
         ms_chars.append(ms_char)
     keys = ms_chars[0].keys()
     for ms_char in ms_chars:
-        if not keys == ms_char.keys():
+        if keys != ms_char.keys():
             raise ValueError('Key Mismatch! Make sure all characterization files '+
                     'contain the same descriptors.')
     return ms_chars
@@ -54,37 +54,39 @@ def interpolate(
         n_steps: int):
     """Interpolate between two diferent microstructure characterizations in the descriptor space."""
     if n_steps <= 2:
-        raise ValueError(f'Number of steps is {n_steps}, but should be > 2 because steps ' + 
-                f'include start and end.')
+        raise ValueError(
+            f'Number of steps is {n_steps}, but should be > 2 because steps include start and end.'
+        )
     interpolated_descriptors = []
     for i in range(n_steps):
         d_inter = {}
-        for key in ms_char_from:
-            d_from = ms_char_from[key]
-            d_to = ms_char_to[key]
-            merged = isinstance(d_from, tuple)
-            if merged:
-                ddi_l = []
-                for ii in range(len(d_from)):
-                    og_shape = d_from[ii].shape
-                    if not d_to[ii].shape == og_shape:
+        for key, ddi in ms_char_from.items():
+            if key != 'settings':
+                d_from = ms_char_from[key]
+                d_to = ms_char_to[key]
+                merged = isinstance(d_from, tuple)
+                if merged:
+                    ddi_l = []
+                    for ii in range(len(d_from)):
+                        og_shape = d_from[ii].shape
+                        if d_to[ii].shape != og_shape:
+                            raise ValueError('Shape mismatch! Make sure the descriptors to ' +
+                                    'interpolate have the same shape.')
+                        ddl = d_from[ii].flatten()
+                        ddr = d_to[ii].flatten()
+                        ddd = ddr - ddl
+                        ddii = (ddl + ddd / (n_steps - 1) * i).reshape(og_shape)
+                        ddi_l.append(ddii)
+                    ddi = tuple(ddi_l)
+                else:
+                    og_shape = d_from.shape
+                    if d_to.shape != og_shape:
                         raise ValueError('Shape mismatch! Make sure the descriptors to ' +
                                 'interpolate have the same shape.')
-                    ddl = d_from[ii].flatten()
-                    ddr = d_to[ii].flatten()
+                    ddl = d_from.flatten()
+                    ddr = d_to.flatten()
                     ddd = ddr - ddl
-                    ddii = (ddl + ddd / (n_steps - 1) * i).reshape(og_shape)
-                    ddi_l.append(ddii)
-                ddi = tuple(ddi_l)
-            else:
-                og_shape = d_from.shape
-                if not d_to.shape == og_shape:
-                    raise ValueError('Shape mismatch! Make sure the descriptors to ' +
-                            'interpolate have the same shape.')
-                ddl = d_from.flatten()
-                ddr = d_to.flatten()
-                ddd = ddr - ddl
-                ddi = (ddl + ddd / (n_steps - 1) * i).reshape(og_shape)
+                    ddi = (ddl + ddd / (n_steps - 1) * i).reshape(og_shape)
             d_inter[key] = ddi
         interpolated_descriptors.append(d_inter)
     return interpolated_descriptors
@@ -122,8 +124,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Interpolate in descriptor space')
     parser.add_argument('microstructure_descriptor_1', type=str, help='MS 1')
     parser.add_argument('microstructure_descriptor_2', type=str, help='MS 2')
-    parser.add_argument('--n_steps', type=int, help='Number of interpolated MSs', default=3)
-    parser.add_argument('--data_folder', type=str, help='Folder that results shall be written to', default=None)
+    parser.add_argument('--n_steps', type=int, help='Number of interpolated MSs', default=5)
+    parser.add_argument('--data_folder', type=str, help='Folder that results shall be written to', default='results')
     parser.add_argument('--logfile_name', type=str, default='logfile')
     parser.add_argument('--logging_level', type=int, default=logging.INFO)
     parser.add_argument('--logfile_date', dest='logfile_date', action='store_true')

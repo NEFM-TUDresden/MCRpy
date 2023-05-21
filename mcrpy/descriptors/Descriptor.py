@@ -19,56 +19,16 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import logging
+from typing import Tuple
 
 import numpy as np
 import tensorflow as tf
 
+from mcrpy.src.IndicatorFunction import IndicatorFunction
+
 class Descriptor(ABC):
     is_differentiable = True
-
-    @classmethod
-    def make_descriptor(
-            cls, 
-            desired_shape_2d=None, 
-            desired_shape_extended=None, 
-            use_multigrid_descriptor=True, 
-            use_multiphase=True, 
-            limit_to = 8,
-            tf_dtype = None,
-            **kwargs) -> callable:
-        """By default wraps self.make_single_phase_descriptor."""
-        if use_multigrid_descriptor:
-            singlephase_descriptor =  cls.make_multigrid_descriptor(
-                limit_to=limit_to,
-                desired_shape_2d=desired_shape_2d,
-                desired_shape_extended=desired_shape_extended,
-                tf_dtype=tf_dtype,
-                **kwargs)
-        else:
-            singlephase_descriptor = cls.make_singlegrid_descriptor(
-                limit_to=limit_to, 
-                desired_shape_2d=desired_shape_2d,
-                desired_shape_extended=desired_shape_extended,
-                tf_dtype=tf_dtype,
-                **kwargs) 
-        ms_shape = desired_shape_extended
-        n_phases = ms_shape[-1]
-        n_pixels = np.prod(ms_shape[:-1])
-
-        @tf.function
-        def singlephase_wrapper(x: tf.Tensor) -> tf.Tensor:
-            phase_descriptor = tf.expand_dims(singlephase_descriptor(x), axis=0)
-            return phase_descriptor
-
-        @tf.function
-        def multiphase_wrapper(x: tf.Tensor) -> tf.Tensor:
-            phase_descriptors = []
-            for phase in range(n_phases):
-                x_phase = x[:, :, :, phase]
-                phase_descriptor = tf.expand_dims(singlephase_descriptor(tf.expand_dims(x_phase, axis=-1)), axis=0)
-                phase_descriptors.append(phase_descriptor)
-            return tf.concat(phase_descriptors, axis=0)
-        return multiphase_wrapper if use_multiphase else singlephase_wrapper
+    default_weight = 1.0
 
     @classmethod
     def make_singlegrid_descriptor(
@@ -76,12 +36,10 @@ class Descriptor(ABC):
             desired_shape_2d=None,
             desired_shape_extended=None,
             limit_to=8,
-            tf_dtype=None,
             **kwargs):
         singlephase_kwargs = {
                 'desired_shape_2d': desired_shape_2d,
                 'desired_shape_extended': desired_shape_extended,
-                'tf_dtype': tf_dtype,
                 'limit_to': limit_to,
                 **kwargs
                 }
@@ -101,7 +59,6 @@ class Descriptor(ABC):
             desired_shape_2d=None,
             desired_shape_extended=None,
             limit_to=8,
-            tf_dtype=None,
             **kwargs):
 
         H, W = desired_shape_2d
@@ -113,11 +70,10 @@ class Descriptor(ABC):
             pool_size = 2**mg_level
             if H % pool_size != 0 or W % pool_size != 0:
                 logging.warning('For MG level number {}, an avgpooling remainder exists.'.format(mg_level))
-            desired_shape_layer = tuple([s//pool_size for s in desired_shape_2d])
+            desired_shape_layer = tuple(s//pool_size for s in desired_shape_2d)
             singlephase_kwargs = {
                     'desired_shape_2d': desired_shape_layer,
                     'desired_shape_extended': (1, *desired_shape_layer, n_phases),
-                    'tf_dtype': tf_dtype,
                     'limit_to': limit_to,
                     **kwargs
                     }
@@ -128,46 +84,48 @@ class Descriptor(ABC):
         @tf.function
         def multigrid_descriptor(mg_input):
             mg_layers = []
+            # print('######################## enter function #############################')
+            # print(type(mg_input))
             for mg_level, singlephase_descriptor in enumerate(singlephase_descriptors):
                 pool_size = 2**mg_level
-                mg_pool = tf.nn.avg_pool2d(mg_input, [pool_size, pool_size], [pool_size, pool_size], 'VALID')
+                if isinstance(mg_input, IndicatorFunction):
+                    mg_pool = IndicatorFunction(tf.nn.avg_pool2d(mg_input.x, [pool_size, pool_size], [pool_size, pool_size], 'VALID'))
+                elif isinstance(mg_input, tf.Tensor):
+                    mg_pool = tf.nn.avg_pool2d(mg_input, [pool_size, pool_size], [pool_size, pool_size], 'VALID')
+                else:
+                    raise ValueError('mg_input should be IndicatorFunction')
                 mg_desc = singlephase_descriptor(mg_pool)
                 mg_exp = tf.expand_dims(mg_desc, axis=0)
                 mg_layers.append(mg_exp)
             outputs = tf.concat(mg_layers, axis=0) if len(mg_layers) > 1 else mg_layers[0]
             return outputs
+
         return multigrid_descriptor
 
     @classmethod
     def wrap_singlephase_descriptor(
             cls, 
-            np_dtype: np.dtype = None,
-            tf_dtype: tf.DType = None,
             **kwargs):
         if cls.is_differentiable:
-            return cls.make_singlephase_descriptor(
-                    np_dtype=np_dtype, tf_dtype=tf_dtype, **kwargs)
-        else:
-            compute_descriptor_np = cls.make_singlephase_descriptor(
-                    np_dtype=np_dtype, tf_dtype=tf_dtype, **kwargs)
+            return cls.make_singlephase_descriptor(**kwargs)
+        compute_descriptor_np = cls.make_singlephase_descriptor(**kwargs)
 
-            def compute_descriptor_tf(x: tf.Tensor) -> tf.Tensor:
-                x_np = x.numpy()
-                y_np = compute_descriptor_np(x_np)
-                y_tf = tf.constant(y_np.astype(np_dtype), dtype=tf_dtype)
-                return y_tf
+        def compute_descriptor_tf(x: tf.Tensor) -> tf.Tensor:
+            x_np = x.numpy()
+            y_np = compute_descriptor_np(x_np)
+            y_tf = tf.constant(y_np.astype(np.float64), dtype=tf.float64)
+            return y_tf
 
-            @tf.function 
-            def compute_descriptor_compiled(x: tf.Tensor) -> tf.Tensor:
-                py_descriptor = tf.py_function(func=compute_descriptor_tf, inp=[x], Tout=tf_dtype)
-                return py_descriptor
-            return compute_descriptor_compiled
+        @tf.function 
+        def compute_descriptor_compiled(x: tf.Tensor) -> tf.Tensor:
+            py_descriptor = tf.py_function(func=compute_descriptor_tf, inp=[x], Tout=tf.float64)
+            return py_descriptor
+
+        return compute_descriptor_compiled
 
     @classmethod
     def make_singlephase_descriptor(
             cls, 
-            np_dtype: np.dtype = None,
-            tf_dtype: tf.DType = None,
             **kwargs) -> callable:
         """Staticmethod that return a function that computes the descriptor of a single phase MS.
         For differentiable descriptors (cls.is_differentiable), this function should take the MS
@@ -198,11 +156,11 @@ class Descriptor(ABC):
                 except Exception:
                     logging.info(f'x is {x}')
                     logging.info(f'y is {y}')
-                    raise ValueError('Could not compare current and desired descriptor. ' +
-                        f'This is maybe because of type mismatch, but most likely because ' + 
-                        f'of shape mismatch. Either make sure the shapes match or ' + 
-                        f'overwrite the descriptor subclass method define_comparison_mask ' + 
-                        f'to define the behavior.')
+                    raise ValueError("""Could not compare current and desired descriptor. 
+                        This is maybe because of type mismatch, but most likely because 
+                        of shape mismatch. Either make sure the shapes match or 
+                        overwrite the descriptor subclass method define_comparison_mask 
+                        to define the behavior.""")
             return compare
         @tf.function
         def compare_reduce_desired(smaller: tf.Tensor, larger: tf.Tensor) -> tf.Tensor:
@@ -220,7 +178,7 @@ class Descriptor(ABC):
             descriptor_value: np.ndarray, 
             save_as: str = None,
             descriptor_type: str = None):
-        if isinstance(descriptor_value, tuple) or isinstance(descriptor_value, list):
+        if isinstance(descriptor_value, (tuple, list)):
             if save_as is not None:
                 assert save_as.endswith('.png')
             for dim_number, dim_value in enumerate(descriptor_value):
@@ -238,10 +196,23 @@ class Descriptor(ABC):
             descriptor_value: np.ndarray, 
             save_as: str = None,
             descriptor_type: str = None):
+        import matplotlib
         import matplotlib.pyplot as plt
+        
+        matplotlib.rcParams.update({
+            "pgf.texsystem":"pdflatex",
+            'font.family': 'serif',
+            'font.size': 10,
+            'figure.titlesize': 'medium',
+            'text.usetex':'True',
+            'pgf.rcfonts':'False',
+            "pgf.preamble": r"\usepackage{amsmath}\usepackage{amsfonts}\usepackage{mathrsfs}"
+            })
+        
         n_phases = descriptor_value.shape[0]
         mg_levels = descriptor_value.shape[1]
-        fig, axs = plt.subplots(n_phases, mg_levels, sharex=True, sharey=True, squeeze=False)
+        fig, axs = plt.subplots(n_phases, mg_levels, squeeze=False)
+        # fig, axs = plt.subplots(n_phases, mg_levels, sharex=True, sharey=True, squeeze=False)
         for n_phase in range(n_phases):
             for mg_level in range(mg_levels):
                 cls.visualize_subplot(
@@ -249,7 +220,7 @@ class Descriptor(ABC):
                         axs[n_phase, mg_level],
                         descriptor_type=descriptor_type,
                         mg_level=mg_level,
-                        n_phase=n_phase)
+                        n_phase=n_phase if n_phases > 1 else 1)
         plt.tight_layout()
         if save_as:
             logging.info(f'saving image as {save_as}')
@@ -280,3 +251,46 @@ class Descriptor(ABC):
             ax.imshow(x, cmap='cividis')
         ax.set_title(f'{descriptor_type}: l={mg_level}, p={n_phase}')
 
+def make_image_padder(pad_x: int, pad_y: int):
+
+    @tf.function
+    def tile_img(img: tf.Tensor) -> tf.Tensor:
+        """Tile an image. Needed for periodic boundary conditions in convolution."""
+        img_tiled_x = tf.concat([img, img[:, :pad_x, :, :]], axis=1)
+        img_tiled_xy = tf.concat([img_tiled_x, img_tiled_x[:, :, :pad_y, :]], axis=2)
+        return img_tiled_xy
+    return tile_img
+
+def test_padding():
+    import matplotlib.pyplot as plt
+
+    ms = np.load('../../microstructures/pymks_ms_64x64.npy')
+    ms = ms.reshape([1, *ms.shape, 1])
+    padder = make_image_padder(15, 1)
+
+    savefig = False
+
+    plt.figure(figsize=(4, 4))
+    plt.imshow(padder(ms)[0, :, :, 0])
+    plt.legend()
+    plt.tight_layout()
+    if savefig:
+        plt.savefig('plot.png', dpi=600, bbox_inches='tight')
+    else:
+        plt.show()
+    plt.close()
+    
+
+    plt.figure(figsize=(4, 4))
+    plt.imshow(ms[0, :, :, 0])
+    plt.legend()
+    plt.tight_layout()
+    if savefig:
+        plt.savefig('plot.png', dpi=600, bbox_inches='tight')
+    else:
+        plt.show()
+    plt.close()
+    
+
+if __name__ == "__main__":
+    test_padding()

@@ -20,10 +20,10 @@ from __future__ import annotations
 import tensorflow as tf
 
 from mcrpy.src import descriptor_factory
-from mcrpy.descriptors.Descriptor import Descriptor
+from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
-class VolumeFractions(Descriptor):
+class VolumeFractions(PhaseDescriptor):
     is_differentiable = True
 
     @staticmethod

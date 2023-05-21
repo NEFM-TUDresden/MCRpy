@@ -1,0 +1,86 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Match pymks",
+            "type": "python",
+            "request": "launch",
+            "program": "mcrpy\\match.py",
+            "args": [
+                "--microstructure_filename",
+                "example_microstructures\\pymks_ms_64x64_2.npy",
+                "--descriptor_types",
+                "Correlations",
+                "--limit_to",
+                "16",
+                "--data_folder",
+                "mcrpy\\results"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Match fast",
+            "type": "python",
+            "request": "launch",
+            "program": "mcrpy\\match.py",
+            "args": [
+                "--microstructure_filename",
+                "example_microstructures\\pymks_ms_64x64_2.npy",
+                "--descriptor_types",
+                "LineCorrelations",
+                "--limit_to",
+                "16",
+                "--data_folder",
+                "mcrpy\\results"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "View convergence data",
+            "type": "python",
+            "request": "launch",
+            "program": "mcrpy\\view.py",
+            "args": [
+                "mcrpy\\results\\convergence_data.pickle",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "View 2D MS",
+            "type": "python",
+            "request": "launch",
+            "program": "mcrpy\\view.py",
+            "args": [
+                "mcrpy\\results\\last_frame.npy",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "View 3D MS",
+            "type": "python",
+            "request": "launch",
+            "program": "mcrpy\\view.py",
+            "args": [
+                "mcrpy\\results\\last_frame.npy",
+                "--savefig",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

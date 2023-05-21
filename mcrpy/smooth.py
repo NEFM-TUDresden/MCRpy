@@ -23,30 +23,37 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 
 from mcrpy.src import fileutils
+from mcrpy.src.Microstructure import Microstructure
 
 def gaussian_smoothing(microstructure: np.ndarray, strength: float = 1.0):
     microstructure = gaussian_filter(microstructure, strength, mode='wrap')
     return np.round(microstructure)
 
-def smooth(microstructure: np.ndarray, method: str = 'gaussian', strength: float = 1.0):
+def smooth(microstructure: Microstructure, method: str = 'gaussian', strength: float = 1.0):
+    assert microstructure.has_phases
     if method == 'gaussian':
         f = gaussian_smoothing
     else:
         raise NotImplementedError(f'Smoothing method {method} was chosen, but is not implemented.')
-    ms_encoded = fileutils.encode_ms(np.round(microstructure).astype(np.int8))
+    with microstructure.use_multiphase_encoding() as x:
+        _smooth_multiphase(x, microstructure, f, strength)
+    return microstructure
+
+def _smooth_multiphase(x, microstructure, f, strength):
+    ms_encoded = x.numpy()[0]
     phases = list(range(ms_encoded.shape[-1]))
     vfs = np.array([np.average(ms_encoded[..., phase]) for phase in phases])
     largest_phase = np.argmax(vfs)
 
     ms_smoothed = np.zeros(ms_encoded.shape)
-    largest_indicator_function = np.ones(microstructure.shape)
+    largest_indicator_function = np.ones(microstructure.spatial_shape)
     for phase in phases:
         if phase == largest_phase:
             continue
         ms_smoothed[..., phase] = f(ms_encoded[..., phase].astype(np.float64), strength)
         largest_indicator_function -= ms_smoothed[..., phase]
     ms_smoothed[..., largest_phase] = largest_indicator_function
-    return fileutils.decode_ms(ms_smoothed)
+    x.assign(ms_smoothed.reshape(x.numpy().shape))
 
 def main(args):
     """Main function for smooting script. This wraps some i/o around the smooth() function in order to make it usable
@@ -56,18 +63,13 @@ def main(args):
     if not args.microstructure_filename.endswith('.npy'):
         raise ValueError(f'Given file {args.microstructure_filename} should be a .npy-file!')
 
-    ms = fileutils.read_ms(args.microstructure_filename)
-
-    if len(ms.shape) == 5:
-        logging.warning('legacy encoding encountered - converting it')
-        ms = fileutils.decode_ms(ms)
+    ms = Microstructure.from_npy(args.microstructure_filename, use_multiphase=True)
 
     ms_smoothed = smooth(ms)
 
-    filename_additive = '' if args.info is None else '_' + args.info
+    filename_additive = '' if args.info is None else f'_{args.info}'
     filename = f'{args.microstructure_filename[:-4]}{filename_additive}_smoothed.npy'
-    print(f'saving to {filename}')
-    np.save(filename, ms_smoothed)
+    ms_smoothed.to_npy(filename)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

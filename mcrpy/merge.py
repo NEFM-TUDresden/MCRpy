@@ -51,8 +51,7 @@ def merge(ms_chars: List[Dict[str, Union[np.ndarray, Tuple[np.ndarray]]]]):
             raise ValueError('The characterizations cannot be merged because they do not ' +
                     'contain the same descriptors.')
 
-    merged_chars = {key: tuple([ms_char[key] for ms_char in ms_chars]) for key in keys}
-    return merged_chars
+    return {key: tuple(ms_char[key] for ms_char in ms_chars) for key in keys}
 
 def main(args):
     """Main function for merge script. This wraps some i/o around the merge() function in order to make it usable
@@ -65,7 +64,7 @@ def main(args):
             raise ValueError(f'Given file {char_file} should end with .pickle!')
 
     if os.path.isfile(args.outfile):
-        raise ValueError(f'Output file {args,outfile} does exist!')
+        raise ValueError(f'Output file {args.outfile} does exist!')
     if not args.outfile.endswith('.pickle'):
         raise ValueError(f'Output file {args.outfile} should end with .pickle!')
     

@@ -36,18 +36,19 @@ def unregister(loss_type: str) -> None:
     loss_creation_functions.pop(loss_type, None)
 
 
-def create(loss_type: str, arguments: Dict[str, Any]) -> Union[Loss, Tuple[Loss]]:
-    assert 'anisotropic' in arguments.keys()
-    if arguments['anisotropic']:
-        losses = []
-        for dim in range(3):
-            args_copy = arguments.copy()
-            d_des_lst = [d_des[dim] for d_des in arguments['desired_descriptor_list']]
-            args_copy['desired_descriptor_list'] = d_des_lst
-            losses.append(try_create(loss_type, args_copy))
-        return tuple(losses)
-    else:
+def create(loss_type: str, arguments: Dict[str, Any], non_cubic_3d: bool = False) -> Union[Loss, Tuple[Loss]]:
+    assert 'anisotropic' in arguments
+    if not arguments['anisotropic']:
         return try_create(loss_type, arguments)
+    losses = []
+    for dim in range(3):
+        args_copy = arguments.copy()
+        d_des_lst = [d_des[dim] for d_des in arguments['desired_descriptor_list']]
+        args_copy['desired_descriptor_list'] = d_des_lst
+        if non_cubic_3d:
+            args_copy['descriptor_list'] = arguments['descriptor_list'][dim]
+        losses.append(try_create(loss_type, args_copy))
+    return tuple(losses)
 
 def try_create(loss_type: str, arguments: Dict[str, Any]) -> Loss:
     try:

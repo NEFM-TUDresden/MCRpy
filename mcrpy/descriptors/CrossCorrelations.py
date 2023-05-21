@@ -24,26 +24,21 @@ import numpy as np
 
 from mcrpy.src import descriptor_factory
 from mcrpy.descriptors.Descriptor import make_image_padder
-from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
+from mcrpy.descriptors.MultiPhaseDescriptor import MultiPhaseDescriptor
 
 
-class Correlations(PhaseDescriptor):
+class CrossCorrelations(MultiPhaseDescriptor):
     is_differentiable = True
+    default_weight = 10.0
 
     @staticmethod
-    def make_singlephase_descriptor( 
+    def make_multiphase_descriptor( 
             desired_shape_2d=(64, 64), 
             limit_to: int = 8, 
             l_threshold_value: float = 0.75, 
             threshold_steepness: float = 10, 
-            periodic: bool = True,
+            n_phases: int = None,
             **kwargs) -> callable:
-        """Makes a function that computes the differentiable two- and three-point multigrid auto-correlation function of phase 1 given a field.  
-        Differs from make_diff_correlations in that the multigrid version is computed. 
-        For more information, see the paper: 
-            Seibert, Ambati, Raßloff, Kästner, Reconstructing random heterogeneous media through differentiable optimization, 2021. 
-        Note that this function does not perform the increasing soft threshold correction derived in the appendix of the mentioned paper.py .
-        It therefore computes \bar{S}, not \tilde{S}. This is fine, but requires D^\text{des} to be computed accordingly."""
         H, W = desired_shape_2d
         H_conv = limit_to
         W_conv = limit_to
@@ -52,30 +47,18 @@ class Correlations(PhaseDescriptor):
         a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
         b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
 
-        tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
-        tile_img = make_image_padder(min(W_conv, W)-1, min(H_conv, H)-1)
+        assert n_phases > 1
 
+        tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
 
         @tf.function
         def make_dense_filters() -> tf.Tensor:
-            """Make the convolution filter masks for the convolve threshold reduce pipeline for computing spatial correlations in a differentiable manner.
-            This includes negative correlation vector components.
-            The symmetry of the ensemble with respect to reversing the direction of the correlation vector is exploited by computing only half the correlations.
-            As a further code optimization, to reduce the stencil size, those masks that correspond to negative indices are shifted such that they lie 
-            entirely in the positive index quadrant, with the correlation vector not starting at the origin but above.
-            This shifts the resulting ensembles up, making them equally useable for computing two-point correlations, but not usable for three-point correlations.
-            Therefore, they are shifted back again later in a different substep via the function fix_ensemble_shift.
-            Furthermore, note that the masks are constructed in a sparse manner that would enable the usage of a sparse array data type that can 
-            exploit the extreme sparsity of these masks.
-            However, at the moment of writing this, TensorFlow does not support convolutions with sparse kernels, which are admittedly hard to optimize.
-            Therefore, the sparse data structure is converted to dense at the end of the function."""
-            in_channels = 1
+            in_channels = 2
             out_channels = H_conv * W_conv + (H_conv - 1) * (W_conv - 1)
             n_entries = out_channels * 2 - 1
             filter_indices = np.zeros((n_entries, 4), dtype=np.int64)
             filter_values = np.zeros((n_entries), dtype=np.float64)
-            filter_denseshape = np.array([H_conv, W_conv, in_channels, out_channels], dtype=np.int64)
-            # filter_denseshape = np.array([H_conv + 1, W_conv + 1, in_channels, out_channels], dtype=np.int64)
+            filter_denseshape = np.array([H_conv + 1, W_conv + 1, in_channels, out_channels], dtype=np.int64)
             entry_index = 0
             for i in range(H_conv):
                 for j in range(W_conv):
@@ -90,7 +73,7 @@ class Correlations(PhaseDescriptor):
                     filter_values[entry_index] = 0.5
                     entry_index += 1
 
-                    filter_indices[entry_index] = (i, j, 0, k)
+                    filter_indices[entry_index] = (i, j, 1, k)
                     filter_values[entry_index] = 0.5
                     entry_index += 1
             for i in range(1, H_conv):
@@ -102,7 +85,7 @@ class Correlations(PhaseDescriptor):
                     filter_values[entry_index] = 0.5
                     entry_index += 1
 
-                    filter_indices[entry_index] = (i, W_conv - 1 + j, 0, k)
+                    filter_indices[entry_index] = (i, W_conv - 1 + j, 1, k)
                     filter_values[entry_index] = 0.5
                     entry_index += 1
 
@@ -148,14 +131,22 @@ class Correlations(PhaseDescriptor):
 
         @tf.function
         def model(mg_input):
-            img_tiled = tile_img(mg_input) if periodic else mg_input
-            img_convolved = tf.nn.conv2d(img_tiled, filters=filters,
-                    strides=[1, 1, 1, 1], padding='VALID')
-            img_convolved_fixed = fix_ensemble_shift(img_convolved)
-            img_thresholded = tf.nn.sigmoid((img_convolved_fixed - l_threshold_value) * threshold_steepness) * a + b
-            mg_gram = l_gram_function(img_thresholded)
-            return mg_gram
+            correlation_list = []
+            img_tiled = tile_img(mg_input)
+            for phase_from in range(n_phases):
+                for phase_to in range(phase_from):
+                    if phase_from == phase_to:
+                        continue
+                    input_phases = tf.stack([img_tiled[:, :, :, phase_from], img_tiled[:, :, :, phase_to]], axis=-1)
+                    img_convolved = tf.nn.conv2d(input_phases, filters=filters,
+                            strides=[1, 1, 1, 1], padding='VALID')
+                    img_convolved_fixed = fix_ensemble_shift(img_convolved)
+                    img_thresholded = tf.nn.sigmoid((img_convolved_fixed - l_threshold_value) * threshold_steepness) * a + b
+                    mg_gram = l_gram_function(img_thresholded)
+                    correlation_list.append(mg_gram)
+            return tf.concat(correlation_list, axis=0)
         return model
+
 
     @staticmethod
     def define_comparison_mask(
@@ -164,8 +155,7 @@ class Correlations(PhaseDescriptor):
             **kwargs):
         # sourcery skip: for-append-to-extend, list-comprehension, use-itertools-product
         assert len(desired_descriptor_shape) == 2
-        assert desired_descriptor_shape[0] == desired_descriptor_shape[1]
-        desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[0] - 0.25),
+        desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[1] - 0.25),
                 decimals=0).astype(int)
         logging.info(f'limit_to for desired_descriptor is {desired_limit_to}')
         logging.info(f'limit_to for current is {limit_to}')
@@ -187,43 +177,9 @@ class Correlations(PhaseDescriptor):
         for i, bi in enumerate(boolean_list):
             for j, bj in enumerate(boolean_list):
                 mask[i, j] = bi and bj
+        n_cross_correlations = desired_descriptor_shape[0] // desired_descriptor_shape[1]
+        mask = np.concatenate([mask]*n_cross_correlations)
         return mask, limit_to > desired_limit_to
 
-    @classmethod
-    def visualize_subplot(
-            cls,
-            descriptor_value: np.ndarray,
-            ax,
-            descriptor_type: str = None,
-            mg_level: int = None,
-            n_phase: int = None):
-        x_max, y_max = descriptor_value.shape
-        assert x_max == y_max
-        limit_to = np.round(0.5 + np.sqrt(0.5 * x_max - 0.25), decimals=0).astype(int)
-        xticks = [0, limit_to - 1, 2 * (limit_to - 1)]
-        yticks = [0, limit_to - 1, 2 * (limit_to - 1)]
-        s2_descriptor = np.diag(descriptor_value)
-        s2_sorted = np.zeros(tuple([2 * limit_to - 1]*2))
-        k = 0
-        for i in range(limit_to):
-            for j in range(limit_to):
-                s2_sorted[limit_to - 1 + i, limit_to - 1 + j] = s2_descriptor[k]
-                s2_sorted[limit_to - 1 - i, limit_to - 1 - j] = s2_descriptor[k]
-                k += 1
-        for i in range(1, limit_to):
-            for j in range(1, limit_to):
-                s2_sorted[limit_to - 1 + i, limit_to - 1 - j] = s2_descriptor[k]
-                s2_sorted[limit_to - 1 - i, limit_to - 1 + j] = s2_descriptor[k]
-                k += 1
-        ax.imshow(s2_sorted, cmap='cividis')
-        ax.set_title(f'$S_2$: l={mg_level}, p={n_phase}')
-        ax.set_xlabel(r'$r_x$ in Px')
-        ax.set_ylabel(r'$r_y$ in Px')
-        ax.set_xticks(xticks)
-        ax.set_yticks(yticks)
-        ax.set_xticklabels([-(2**mg_level * limit_to) + 1, 0, 2**mg_level * limit_to - 1])
-        ax.set_yticklabels(reversed([-(2**mg_level * limit_to) + 1, 0, 2**mg_level * limit_to - 1]))
-
-
 def register() -> None:
-    descriptor_factory.register("Correlations", Correlations)
+    descriptor_factory.register("CrossCorrelations", CrossCorrelations)
