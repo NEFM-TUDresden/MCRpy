@@ -62,7 +62,7 @@ You need Python >= 3.7 as well as the following packages:
 | package         | version |
 | ----            | ----    |
 | Numpy           | 1.20.1  |
-| Tensorflow      | 2.3.1   |
+| Tensorflow      | 2.7.1   |
 | Matplotlib      | 3.3.4   |
 | Scipy           | 1.6.2   |
 | pyMKS           | 0.4.1   |
