@@ -317,7 +317,7 @@ All works are also available on as pre-print on ArXiv
 Please cite at least one of these sources if you use MCRpy in your work.
 
 ## Image credits
-Some images are taken from [our latest publication](https://link.springer.com/article/10.1007/s40192-022-00273-4).
+Some images are taken from [our publications](https://link.springer.com/article/10.1007/s40192-022-00273-4).
 
 ## License
 MCRpy is published under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
