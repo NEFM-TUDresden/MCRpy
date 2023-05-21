@@ -252,9 +252,9 @@ class DMCR:
 
     def initialize_microstructure(self, previous_solution: Microstructure = None):
         """Initialize the ms by sampling randomly or upsampling previous solution."""
-        loc = 0.5
         ms_class = MutableMicrostructure if  optimizer_factory.optimizer_classes[self.optimizer_type].swaps_pixels else Microstructure
         if previous_solution is None:
+            loc = 0.5
             img = np.random.normal(loc=loc, scale=0.1, size=self.desired_shape_extended)
         else:
             img = self.resample_microstructure(previous_solution)
