@@ -201,7 +201,7 @@ if __name__ == '__main__':
     parser.add_argument('--initial_temperature', type=float, help='Initial temperature for annealing', default=0.0001)
     parser.add_argument('--final_temperature', type=float, help='Final temperature for annealing', default=None)
     parser.add_argument('--cooldown_factor', type=float, help='Cooldown factor for annealing', default=0.9)
-    parser.add_argument('--mutation_rule', type=str, help='Mutation rule for YT', default='relaxed_neigbor')
+    parser.add_argument('--mutation_rule', type=str, help='Mutation rule for YT', default='relaxed_neighbor')
     parser.add_argument('--acceptance_distribution', type=str, help='Acceptance distribution for YT', default='zero_tolerance')
     parser.add_argument('--symmetry', type=str, help='Symmetry of the microstructure if orientations are considered. Default is None.', default=None)
     parser.add_argument('--max_iter', type=int, help='Maximum number of iterations.', default=500)
