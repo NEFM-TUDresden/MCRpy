@@ -150,6 +150,8 @@ class MutableMicrostructure(Microstructure):
             if isinstance(volume_fractions, tuple):
                 volume_fractions = volume_fractions[0]
             volume_fractions = volume_fractions[:, 0].flatten()
+            if len(volume_fractions) == 1:
+                volume_fractions = np.array([1-volume_fractions[0], volume_fractions[0]])
             field = np.round(np.copy(x.numpy()), decimals=0).astype(np.int32)
             init_fails = np.where(np.sum(field, axis=-1) != 1)
             for init_fail in zip(*init_fails):
