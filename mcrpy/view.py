@@ -45,6 +45,8 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstruc
         view_convergence_data(data, original_ms)
     else:
         for k, v in data.items():
+            if k == 'settings':
+                continue
             # try:
             loader.load_plugins([f'mcrpy.descriptors.{k}' ])
             visualize = descriptor_factory.get_visualization(k)
