@@ -49,6 +49,14 @@
             "justMyCode": true
         },
         {
+            "name": "Start GUI",
+            "type": "python",
+            "request": "launch",
+            "program": "mcrpy\\gui_mcrpy.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "View convergence data",
             "type": "python",
             "request": "launch",
