@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import gooey
 import logging
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from mcrpy.characterize import main as main_characterize
 from mcrpy.reconstruct import main as main_reconstruct
@@ -61,15 +62,14 @@ def str2bool(string):
 
 @gooey.Gooey(
         advanced = True,
-        monospace_display = True,
         header_bg_color = COLOR_NEUTRAL,
         header_font_color = COLOR_FONT,
         footer_bg_color = COLOR_BODY,
         footer_font_color = COLOR_FONT,
         body_bg_color = COLOR_BODY,
         sidebar_bg_color = COLOR_NEUTRAL,
-        terminal_panel_color = '#282828',
-        terminal_font_color = '#ffffff',
+        terminal_panel_color = COLOR_BG,
+        terminal_font_color = '#000000',
         default_size = (900, 700),
         program_name = "MCRpy",
         show_sidebar=True,
@@ -221,12 +221,15 @@ def call_main():
     group_vie_opt = parser_vie.add_argument_group("Additional options", "", gooey_options=GOOEY_OPTIONS)
     group_vie_opt.add_argument('--original_ms', type=str, help='If convergence data is plotted, this adds the original microstructure for easy comparison.', widget='FileChooser', gooey_options=GOOEY_OPTIONS)
     group_vie_opt.add_argument('--cmap', type=str, help='Colormap for plotting microstructures', default='cividis', gooey_options=GOOEY_OPTIONS)
+    group_vie_opt.add_argument('--symmetry', type=str, help='Symmetry of the microstructure if orientations are considered. Default is None.', default=None, gooey_options=GOOEY_OPTIONS)
     group_vie_opt.add_argument('--logfile_name', type=str, help='Name of logfile w/o extension.', default='logfile', gooey_options=GOOEY_OPTIONS)
     group_vie_opt.add_argument('--logging_level', type=int, help='Logging level.', default=logging.INFO, gooey_options=GOOEY_OPTIONS)
     group_vie_opt.add_argument('--logfile_date', dest='logfile_date', type=str2bool, choices=[True, False], gooey_options=GOOEY_OPTIONS)
     group_vie_opt.set_defaults(logfile_date=False)
     group_vie_opt.add_argument('--savefig', dest='savefig', type=str2bool, choices=[True, False], gooey_options=GOOEY_OPTIONS)
     group_vie_opt.set_defaults(savefig=False)
+    group_vie_opt.add_argument('--noaxis', dest='noaxis', type=str2bool, choices=[True, False], gooey_options=GOOEY_OPTIONS)
+    group_vie_opt.set_defaults(noaxis=False)
 
     parser_smo = subparsers.add_parser('Smooth')
     parser_smo.set_defaults(func=main_smooth)
@@ -259,7 +262,10 @@ def call_main():
     group_int_opt.set_defaults(logfile_date=False)
 
     args = parser.parse_args()
-    args.func(args)
+    chosen_function = args.func
+    del args.func
+    chosen_function(args)
+
 
 if __name__ == "__main__":
     call_main()
