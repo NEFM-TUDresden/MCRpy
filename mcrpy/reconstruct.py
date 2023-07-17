@@ -122,6 +122,8 @@ def setup_reconstruction(descriptor_dict, desired_shape, settings, initial_micro
 
     # get characterization settings
     characterization_settings = descriptor_dict.pop('settings')
+    if isinstance(characterization_settings, tuple):
+        characterization_settings = characterization_settings[0]
 
     # flatten and weight the descriptor
     desired_descriptors = [descriptor_dict[d] for d in settings.descriptor_types]
