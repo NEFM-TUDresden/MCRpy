@@ -225,6 +225,10 @@ You can view the original and reconstructed microstructure:
 
 `python view.py results/last_frame.npy`
 
+If the microstructure is 3D, then you cannot directly view it, but you can add the savefig-keyword to export it to paraview.
+
+`python view.py results/last_frame.npy --savefig`
+
 And to view the convergence data:
 
 `python view.py results/convergence_data.pickle`
