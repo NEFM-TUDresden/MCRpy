@@ -311,7 +311,7 @@ For visualization, the standard behavior is that a bar plot is made for low-dime
 ## Related Projects
 <p align="center"><img src="images/DAMASK_banner.png" height="100" alt="DAMASK banner"> </img></p>
 
-For simulating the reconstructed 3D microstructures, we recommend [DAMASK](https://damask.mpie.de/index.html) (Düsseldorf Advanced Materials Simulation Kit). Its highly efficient Fourier solvers curcumvent the need for meshing the microstructure. You can directly export a reconstructed microstructure from its Numpy file to DAMASK using the following code:
+For simulating the reconstructed 3D microstructures, we recommend [DAMASK](https://damask.mpie.de/index.html) (Düsseldorf Advanced Materials Simulation Kit). Its highly efficient Fourier solvers circumvent the need for meshing the microstructure. You can directly export a reconstructed microstructure from its Numpy file to DAMASK using the following code:
 ```python
 import numpy as np
 import damask
