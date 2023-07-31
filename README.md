@@ -33,8 +33,9 @@ A key feature of MCRpy is its modularity and extensibility: You can combine **an
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[d) Descriptors](#descriptors)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[e) Descriptor weights](#descriptor-weights)  
 [5) Extending MCRpy by plugins](#extending-mcrpy-by-plugins)  
-[6) Information](#information)  
-[7) License](#license)
+[6) Related projects](#related-projects)  
+[7) Information](#information)  
+[8) License](#license)
 
 ## Installation
 
@@ -308,6 +309,7 @@ def register() -> None:
 For visualization, the standard behavior is that a bar plot is made for low-dimensional descriptors and a heatmap is made for high-dimensional descriptors. You can change this by overriding `Descriptor.visualize_subplot`in your plugin. See `descriptors/Correlations.py` for an example.
 
 ## Related Projects
+<p align="center"><img src="images/DAMASK_banner.png" height="100" alt="DAMASK banner"> </img></p>
 For simulating the reconstructed 3D microstructures, we recommend [DAMASK](https://damask.mpie.de/index.html) (Düsseldorf Advanced Materials Simulation Kit). Its highly efficient Fourier solvers curcumvent the need for meshing the microstructure. You can directly export a reconstructed microstructure from its Numpy file to DAMASK using the following code:
 ```python
 import numpy as np
