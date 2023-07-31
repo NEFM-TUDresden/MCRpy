@@ -307,6 +307,21 @@ def register() -> None:
 
 For visualization, the standard behavior is that a bar plot is made for low-dimensional descriptors and a heatmap is made for high-dimensional descriptors. You can change this by overriding `Descriptor.visualize_subplot`in your plugin. See `descriptors/Correlations.py` for an example.
 
+## Related Projects
+For simulating the reconstructed 3D microstructures, we recommend [DAMASK](https://damask.mpie.de/index.html) (Düsseldorf Advanced Materials Simulation Kit). Its highly efficient Fourier solvers curcumvent the need for meshing the microstructure. You can directly export a reconstructed microstructure from its Numpy file to DAMASK using the following code:
+```python
+import numpy as np
+import damask
+
+def to_damask(self, filename: str):
+    assert filename.endswith('.npy')
+    ms = np.load(filename)
+    grid = (1, 1, 1)
+    damask_grid = damask.Grid(ms, grid)
+    damask_grid.save(filename[:-4])
+```
+For this, you need to have the [DAMASK Python package](https://damask.mpie.de/installation/pypi.html) installed, ideally in a separate virtual environment.
+
 ## Information
 This code has been written by [Paul Seibert](https://www.researchgate.net/profile/Paul-Seibert) and [Alexander Rassloff](https://www.researchgate.net/profile/Alexander-Rassloff) in the lab of [Markus Kaestner](https://www.researchgate.net/profile/Markus-Kaestner) at the [institute of solid mechanics](https://tu-dresden.de/ing/maschinenwesen/ifkm/nefm), TU Dresden, Germany.
 

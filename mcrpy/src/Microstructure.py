@@ -191,6 +191,14 @@ class Microstructure:
         else:
             raise NotImplementedError('Filetype not supported')
 
+    def to_damask(self, filename: str):
+        assert filename.endswith('.vti')
+        import damask
+        ms = self.decode_phases().reshape(self.spatial_shape)
+        grid = (1, 1, 1) if self.is_3D else (1, 1)
+        damask_grid = damask.Grid(ms, grid)
+        damask_grid.save(filename[:-4])
+
     def to_pickle(self, filename: str):
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
