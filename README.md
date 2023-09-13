@@ -309,6 +309,12 @@ def register() -> None:
 For visualization, the standard behavior is that a bar plot is made for low-dimensional descriptors and a heatmap is made for high-dimensional descriptors. You can change this by overriding `Descriptor.visualize_subplot`in your plugin. See `descriptors/Correlations.py` for an example.
 
 ## Related Projects
+
+### DRAGen
+
+For fast RVE generation in the context of metallic materials, we recommend [DRAGen](https://github.com/ibf-RWTH/DRAGen/tree/master) (Discrete RVE Automation and Generation). DRAGen is based on a cellular automaton-like growth of grains from seed points which are placed using a random sequential addition algorithm. Furthermore, meshes can be generated and exported to simulation input files.
+
+### DAMASK
 <p align="center"><img src="images/DAMASK_banner.png" height="100" alt="DAMASK banner"> </img></p>
 
 For simulating the reconstructed 3D microstructures, we recommend [DAMASK](https://damask.mpie.de/index.html) (Düsseldorf Advanced Materials Simulation Kit). Its highly efficient Fourier solvers circumvent the need for meshing the microstructure. You can directly export a reconstructed microstructure from its Numpy file to DAMASK using the following code:
