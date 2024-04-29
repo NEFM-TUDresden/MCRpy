@@ -323,7 +323,7 @@ For simulating the reconstructed 3D microstructures, we recommend [DAMASK](https
 import numpy as np
 import damask
 
-def to_damask(self, filename: str):
+def to_damask(filename: str):
     assert filename.endswith('.npy')
     ms = np.load(filename)
     grid = (1, 1, 1)
