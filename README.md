@@ -44,6 +44,8 @@ To quickly get started, just install via pip using
 
 `pip install mcrpy`
 
+But beware that this does not install the latest version from GitHub and it does not allow to edit the Code and add plugins. We therefore recommend the editable install.
+
 ### Editable install
 Extensibility is a central advantage of MCRpy. If you want to define your own descriptors and use them for reconstruction, you need an editable install (note the dot at the end). 
 This will also download the example images and microstructures.
