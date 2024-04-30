@@ -199,15 +199,15 @@ class Descriptor(ABC):
         import matplotlib
         import matplotlib.pyplot as plt
         
-        matplotlib.rcParams.update({
-            "pgf.texsystem":"pdflatex",
-            'font.family': 'serif',
-            'font.size': 10,
-            'figure.titlesize': 'medium',
-            'text.usetex':'True',
-            'pgf.rcfonts':'False',
-            "pgf.preamble": r"\usepackage{amsmath}\usepackage{amsfonts}\usepackage{mathrsfs}"
-            })
+        # matplotlib.rcParams.update({
+        #     "pgf.texsystem":"pdflatex",
+        #     'font.family': 'serif',
+        #     'font.size': 10,
+        #     'figure.titlesize': 'medium',
+        #     'text.usetex':'True',
+        #     'pgf.rcfonts':'False',
+        #     "pgf.preamble": r"\usepackage{amsmath}\usepackage{amsfonts}\usepackage{mathrsfs}"
+        #     })
         
         n_phases = descriptor_value.shape[0]
         mg_levels = descriptor_value.shape[1]

@@ -31,7 +31,7 @@ from mcrpy.src.Microstructure import Microstructure
 from mcrpy.src.Settings import ReconstructionSettings
 
 
-mplstyle.use('seaborn-notebook')
+# mplstyle.use('seaborn-notebook')
 
 def find_mg_layers(xs: np.ndarray):
     mg_level_starts = []
