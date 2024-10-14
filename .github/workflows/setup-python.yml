@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22-04
 
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +16,7 @@ jobs:
           # Semantic version range syntax or exact version of a Python version
           python-version: '3.7.17'
           # Optional - x64 or x86 architecture, defaults to x64
-        #   architecture: 'x64'
+          architecture: 'x64'
       # You can test your matrix by printing the current Python version
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
