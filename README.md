@@ -338,6 +338,8 @@ For this, you need to have the [DAMASK Python package](https://damask.mpie.de/in
 ## Information
 This code has been written by [Paul Seibert](https://www.researchgate.net/profile/Paul-Seibert) and [Alexander Rassloff](https://www.researchgate.net/profile/Alexander-Rassloff) in the lab of [Markus Kaestner](https://www.researchgate.net/profile/Markus-Kaestner) at the [institute of solid mechanics](https://tu-dresden.de/ing/maschinenwesen/ifkm/nefm), TU Dresden, Germany.
 
+The work was partially funded by the DFG with the grants KA 3309/17-1 and KA 3309/18-1.
+
 The following papers describe this work in different ways:
 * Central idea and the differentiable extension of n-point correlations: [Seibert et al., Reconstructing random heterogeneous media through differentiable optimization, COMMAT, 2021](https://www.sciencedirect.com/science/article/abs/pii/S0927025621001804)
 * Extension to 3D: [Seibert et al., Descriptor-based reconstruction of three-dimensional microstructures through gradient-based optimization, Acta Materialia, 2022](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520)
