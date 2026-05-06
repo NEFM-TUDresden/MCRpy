@@ -1,20 +1,21 @@
 """
-   Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
-   Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
-   Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,20 +33,25 @@ class CrossCorrelations(MultiPhaseDescriptor):
     default_weight = 10.0
 
     @staticmethod
-    def make_multiphase_descriptor( 
-            desired_shape_2d=(64, 64), 
-            limit_to: int = 8, 
-            l_threshold_value: float = 0.75, 
-            threshold_steepness: float = 10, 
-            n_phases: int = None,
-            **kwargs) -> callable:
+    def make_multiphase_descriptor(
+        desired_shape_2d=(64, 64),
+        limit_to: int = 8,
+        l_threshold_value: float = 0.75,
+        threshold_steepness: float = 10,
+        n_phases: int = None,
+        **kwargs,
+    ) -> callable:
         H, W = desired_shape_2d
         H_conv = limit_to
         W_conv = limit_to
-        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
-        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        z_lower_bound = tf.cast(
+            1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64
+        )
+        z_upper_bound = tf.cast(
+            1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64
+        )
         a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
-        b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
+        b = tf.cast(-a * z_lower_bound, dtype=tf.float64)
 
         assert n_phases > 1
 
@@ -93,15 +99,16 @@ class CrossCorrelations(MultiPhaseDescriptor):
             filter_values_tf = tf.cast(tf.constant(filter_values), tf.float64)
             filter_denseshape_tf = tf.constant(filter_denseshape)
             filters_tf_unordered = tf.sparse.SparseTensor(filter_indices_tf, filter_values_tf, filter_denseshape_tf)
-            filters_tf = tf.sparse.reorder(filters_tf_unordered) 
+            filters_tf = tf.sparse.reorder(filters_tf_unordered)
             filters_tf_dense = tf.sparse.to_dense(filters_tf)
             filters_tf_dense = tf.cast(filters_tf_dense, tf.float64)
             return filters_tf_dense
 
         @tf.function
         def fix_ensemble_shift(img_convolved: tf.Tensor) -> tf.Tensor:
-            """Fixes ensemble shift that results from convolution filter optimization undertaken in make_dense_filters. 
-            In pseudocode, this does concat(positives, concat(negatives[:upper part down], negatives[:lower part up], axis=h), axis=c)."""
+            """Fixes ensemble shift that results from convolution filter optimization undertaken in make_dense_filters.
+            In pseudocode, this does concat(positives, concat(negatives[:upper part down], negatives[:lower part up], axis=h), axis=c).
+            """
             lwm1 = W_conv + 1
             lim_area = H_conv * W_conv
             positives = img_convolved[:, :, :, :lim_area]
@@ -111,7 +118,6 @@ class CrossCorrelations(MultiPhaseDescriptor):
             negatives_fixed = tf.concat([negatives_upper, negatives_lower], 2)
             img_convolved_fixed = tf.concat([positives, negatives_fixed], 3)
             return img_convolved_fixed
-
 
         @tf.function
         def normalized_gm(activations: tf.Tensor, layer_area: int, n_channels: int) -> tf.Tensor:
@@ -123,10 +129,12 @@ class CrossCorrelations(MultiPhaseDescriptor):
 
         @tf.function
         def l_gram_function(img_thresholded: tf.Tensor) -> tf.Tensor:
-            _, img_height, img_width, out_channels = img_thresholded.shape.as_list()
+            shape = img_thresholded.shape
+            _, img_height, img_width, out_channels = shape.as_list() if hasattr(shape, "as_list") else tuple(shape)
             layer_area = img_height * img_width
             img_gramed = normalized_gm(img_thresholded, layer_area, out_channels)
             return img_gramed
+
         filters = make_dense_filters()
 
         @tf.function
@@ -138,34 +146,31 @@ class CrossCorrelations(MultiPhaseDescriptor):
                     if phase_from == phase_to:
                         continue
                     input_phases = tf.stack([img_tiled[:, :, :, phase_from], img_tiled[:, :, :, phase_to]], axis=-1)
-                    img_convolved = tf.nn.conv2d(input_phases, filters=filters,
-                            strides=[1, 1, 1, 1], padding='VALID')
+                    img_convolved = tf.nn.conv2d(input_phases, filters=filters, strides=[1, 1, 1, 1], padding="VALID")
                     img_convolved_fixed = fix_ensemble_shift(img_convolved)
-                    img_thresholded = tf.nn.sigmoid((img_convolved_fixed - l_threshold_value) * threshold_steepness) * a + b
+                    img_thresholded = (
+                        tf.nn.sigmoid((img_convolved_fixed - l_threshold_value) * threshold_steepness) * a + b
+                    )
                     mg_gram = l_gram_function(img_thresholded)
                     correlation_list.append(mg_gram)
             return tf.concat(correlation_list, axis=0)
+
         return model
 
-
     @staticmethod
-    def define_comparison_mask(
-            desired_descriptor_shape: Tuple[int] = None, 
-            limit_to: int = None, 
-            **kwargs):
+    def define_comparison_mask(desired_descriptor_shape: Tuple[int] = None, limit_to: int = None, **kwargs):
         # sourcery skip: for-append-to-extend, list-comprehension, use-itertools-product
         assert len(desired_descriptor_shape) == 2
-        desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[1] - 0.25),
-                decimals=0).astype(int)
-        logging.info(f'limit_to for desired_descriptor is {desired_limit_to}')
-        logging.info(f'limit_to for current is {limit_to}')
+        desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[1] - 0.25), decimals=0).astype(int)
+        logging.info(f"limit_to for desired_descriptor is {desired_limit_to}")
+        logging.info(f"limit_to for current is {limit_to}")
 
         if limit_to == desired_limit_to:
             return None, False
 
         larger_limit_to = max(limit_to, desired_limit_to)
         smaller_limit_to = min(limit_to, desired_limit_to)
-        larger_n_elements = larger_limit_to**2 + (larger_limit_to - 1)**2
+        larger_n_elements = larger_limit_to**2 + (larger_limit_to - 1) ** 2
         boolean_list = []
         for i in range(larger_limit_to):
             for j in range(larger_limit_to):
@@ -178,8 +183,9 @@ class CrossCorrelations(MultiPhaseDescriptor):
             for j, bj in enumerate(boolean_list):
                 mask[i, j] = bi and bj
         n_cross_correlations = desired_descriptor_shape[0] // desired_descriptor_shape[1]
-        mask = np.concatenate([mask]*n_cross_correlations)
+        mask = np.concatenate([mask] * n_cross_correlations)
         return mask, limit_to > desired_limit_to
+
 
 def register() -> None:
     descriptor_factory.register("CrossCorrelations", CrossCorrelations)
