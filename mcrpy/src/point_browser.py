@@ -22,6 +22,7 @@ import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import matplotlib.style as mplstyle
+from matplotlib.widgets import Button
 import numpy as np
 import tensorflow as tf
 
@@ -187,6 +188,32 @@ class PointBrowser(object):
             other_axis.get_xaxis().set_visible(False)
             other_axis.get_yaxis().set_visible(False)
 
+        # --- Build the list of currently-active shortcuts --------------------
+        self._shortcuts = [
+            ("n", "next intermediate microstructure"),
+            ("p", "previous intermediate microstructure"),
+            ("b", "jump to first (begin)"),
+            ("e", "jump to last (end)"),
+            ("r", "toggle raw / decoded phase view"),
+            ("x / y / z", "slice along x / y / z axis (3D only)"),
+            ("mouse wheel", "scroll through slices (3D only)"),
+        ]
+        if self.last_microstructure.has_phases and self.last_microstructure.n_phases > 1:
+            self._shortcuts.append(("c", "cycle through phases / max-phase view"))
+        if self.last_microstructure.has_orientations:
+            self._shortcuts.append(("v / w", "cycle orientation views forward / backward"))
+        self._shortcuts.append(("click on dot", "select that iteration"))
+        self._shortcuts.append(("?  button", "show this help"))
+
+        # --- Add a small "?" info button in the top-left corner --------------
+        # [left, bottom, width, height] in figure coordinates (0..1)
+        self._info_btn_ax = self.fig.add_axes([0.005, 0.955, 0.025, 0.04])
+        self._info_btn = Button(self._info_btn_ax, "?", color="#dddddd", hovercolor="#bbddff")
+        self._info_btn.label.set_fontsize(11)
+        self._info_btn.label.set_fontweight("bold")
+        self._info_btn.on_clicked(self._show_help)
+        self._help_fig = None  # placeholder for the popup window
+
         # Connect events and launch
         self.fig.canvas.mpl_connect("pick_event", self.onpick)
         self.fig.canvas.mpl_connect("key_press_event", self.onpress)
@@ -304,3 +331,38 @@ class PointBrowser(object):
         if self.intermediate_microstructures[self.lastind].is_3D:
             self.text_scroll.set_text(f"slice {self.current_slice_number + 1} of {self.slices}")
         self.fig.canvas.draw()
+
+    def _show_help(self, event=None):
+        """Open (or raise) a small window listing keyboard shortcuts."""
+        # If the window already exists and is still open, just bring it to front.
+        if self._help_fig is not None and plt.fignum_exists(self._help_fig.number):
+            try:
+                self._help_fig.canvas.manager.show()
+            except Exception:
+                pass
+            return
+
+        # Build the text block
+        key_width = max(len(k) for k, _ in self._shortcuts)
+        lines = [f"  {k.ljust(key_width)}   {desc}" for k, desc in self._shortcuts]
+        help_text = "Keyboard & mouse shortcuts\n" + "-" * 40 + "\n" + "\n".join(lines)
+
+        # Size the popup to fit the content
+        n_rows = len(self._shortcuts) + 3
+        fig_h = max(2.0, 0.25 * n_rows)
+        self._help_fig = plt.figure("MCRpy — Shortcuts", figsize=(5.2, fig_h))
+        ax = self._help_fig.add_axes([0, 0, 1, 1])
+        ax.set_axis_off()
+        ax.text(
+            0.03,
+            0.97,
+            help_text,
+            ha="left",
+            va="top",
+            family="monospace",
+            fontsize=10,
+            transform=ax.transAxes,
+        )
+        # Clean up the reference when the user closes the window
+        self._help_fig.canvas.mpl_connect("close_event", lambda _e: setattr(self, "_help_fig", None))
+        self._help_fig.show()
