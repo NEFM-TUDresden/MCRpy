@@ -154,7 +154,7 @@ Note that all settings have the same name as in the GUI.
 
 You can automate this in loops very simply to reconstruct multiple microstructures. The index `i` is passed to the `--information` argument to have it added to all filenames, so the files don't override each other.
 ```bash
-mcrpy_characterize ms_slice.npy --limit_to 8 --descriptor_types Correlations Variation
+mcrpy_characterize --microstructure_filenames ms_slice.npy --limit_to 8 --descriptor_types Correlations Variation
 for i in {1..9} 
 do
     mcrpy_reconstruct --descriptor_filename results/ms_slice_characterization.pickle \
@@ -242,7 +242,7 @@ mcrpy_match --microstructure_filename example_microstructures/pymks_ms_64x64_1.n
 You can also just characterize the microstructure without reconstructing it:
 
 ```bash
-mcrpy_characterize example_microstructures/pymks_ms_64x64_2.npy \
+mcrpy_characterize --microstructure_filenames example_microstructures/pymks_ms_64x64_2.npy \
        --limit_to 16 --descriptor_types Correlations Variation GramMatrices
 ```
 
