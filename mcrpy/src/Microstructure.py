@@ -9,6 +9,7 @@ import numpy as np
 from scipy.ndimage import convolve
 import tensorflow as tf
 from contextlib import suppress
+
 # tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from mcrpy.src.IndicatorFunction import IndicatorFunction
@@ -17,17 +18,21 @@ from mcrpy.src.Symmetry import Symmetry, Cubic
 LOADED_GRIDTOVTK = False
 with suppress(Exception):
     from pyevtk.hl import gridToVTK
+
     LOADED_GRIDTOVTK = True
+
 
 class Microstructure:
 
-    def __init__(self, 
-            array: np.ndarray, 
-            use_multiphase = False,
-            ori_repr: type = None,
-            symmetry: Symmetry = Cubic,
-            skip_encoding: bool = False,
-            trainable: bool = True):
+    def __init__(
+        self,
+        array: np.ndarray,
+        use_multiphase=False,
+        ori_repr: type = None,
+        symmetry: Symmetry = Cubic,
+        skip_encoding: bool = False,
+        trainable: bool = True,
+    ):
         """
         Creates a Microstructure object from a numpy array. The Microstructure
         object internally hold a tf.Variable called x, which contains all information
@@ -35,7 +40,7 @@ class Microstructure:
         following shape, depending on the situation:
         1, I, J, (K,) n_phases # if has_phases and use_multiphase
         1, I, J, (K,) 1        # if has_phases and not use_multiphase
-        1, I, J, (K,) 3        # if has_orientations 
+        1, I, J, (K,) 3        # if has_orientations
         Where I, J, and K are the number of pixels or voxels in x, y and z direction
         (if 3D), respectively. The first dimension is the batch dimension as needed
         for TensorFlow. Normally, self.x is encoded accordingly to use_multiphase from
@@ -52,11 +57,11 @@ class Microstructure:
         if 1.0 < np.max(array) < 1.0001:
             array[array > 1] = 1
         if np.sum(np.isnan(array)) > 0:
-            logging.warning('Array to initialize microstructure contains NANs! - filling with zeros')
+            logging.warning("Array to initialize microstructure contains NANs! - filling with zeros")
             array[np.isnan(array)] = 0
         if skip_encoding and (use_multiphase or array.shape[-1] == 1):
-            logging.info('Skipping encoding')
-            logging.info('Skip encoding, assume phase information')
+            logging.info("Skipping encoding")
+            logging.info("Skip encoding, assume phase information")
             self.n_phases = array.shape[-1]
             self.phase_numbers = list(range(self.n_phases))
             if array.shape[0] == 1:
@@ -67,7 +72,7 @@ class Microstructure:
             self.has_orientations = False
         elif array.shape[-1] == 3 and not use_multiphase:
             assert len(array.shape) in {3, 4}
-            logging.info('Assume orientation information')
+            logging.info("Assume orientation information")
             self.phase_numbers = [0]
             self.n_phases = 1
             x_np = symmetry.project_to_fz(ori_repr(array.astype(np.float64))).x.numpy()
@@ -76,16 +81,16 @@ class Microstructure:
         elif skip_encoding:
             raise ValueError("Cannot skip encoding.")
         elif use_multiphase or np.max(array) > 1:
-            logging.info('Assume phase information and use multiphase')
+            logging.info("Assume phase information and use multiphase")
             phases_int = np.round(array).astype(np.int8)
-            assert np.max(np.abs(phases_int-array)) < 1e-11
+            assert np.max(np.abs(phases_int - array)) < 1e-11
             phases = phases_int
 
             self.phase_numbers = np.unique(phases)
-            logging.info(f'encoding phases {self.phase_numbers}')
+            logging.info(f"encoding phases {self.phase_numbers}")
             self.n_phases = len(self.phase_numbers)
             if not all(np.array(list(range(self.n_phases))) == self.phase_numbers):
-                raise ValueError('Phases should be numbered consecutively, starting at 0.')
+                raise ValueError("Phases should be numbered consecutively, starting at 0.")
             encoded_ms = np.zeros((*phases.shape, self.n_phases), np.int8)
             for phase_number in self.phase_numbers:
                 encoded_ms[..., phase_number] = phases == phase_number
@@ -94,7 +99,7 @@ class Microstructure:
             self.is_3D = len(phases.shape) == 3
             self.has_orientations = False
         else:
-            logging.info('Assume phase information and use singlephase')
+            logging.info("Assume phase information and use singlephase")
             assert 0 <= np.min(array)
             assert 1 >= np.max(array)
             self.n_phases = 1
@@ -121,15 +126,20 @@ class Microstructure:
                 block_shapes_np[n_dim] = block_shape
             self.block_shapes = tf.constant(block_shapes_np, dtype=tf.int32)
             self.batch_element_shapes = [
-                    (1, self.spatial_shape[1], self.spatial_shape[2], self.extra_shape),
-                    (1, self.spatial_shape[0], self.spatial_shape[2], self.extra_shape),
-                    (1, self.spatial_shape[0], self.spatial_shape[1], self.extra_shape),
-                    ]
+                (1, self.spatial_shape[1], self.spatial_shape[2], self.extra_shape),
+                (1, self.spatial_shape[0], self.spatial_shape[2], self.extra_shape),
+                (1, self.spatial_shape[0], self.spatial_shape[1], self.extra_shape),
+            ]
             self.swapped_index_1 = tf.Variable([0, 0, 0], trainable=False, dtype=tf.int32)
             self.swapped_index_2 = tf.Variable([0, 0, 0], trainable=False, dtype=tf.int32)
 
         self.ori_repr = ori_repr
-        self.x = tf.Variable(initial_value=x_np.reshape(self.x_shape).astype(np.float64), trainable=trainable, dtype=tf.float64, name='microstructure')
+        self.x = tf.Variable(
+            initial_value=x_np.reshape(self.x_shape).astype(np.float64),
+            trainable=trainable,
+            dtype=tf.float64,
+            name="microstructure",
+        )
 
     @property
     def xx(self):
@@ -146,20 +156,20 @@ class Microstructure:
         return self.ori_repr(self.x)
 
     @classmethod
-    def load(cls, filename: str , use_multiphase: bool = False, trainable: bool = True):
+    def load(cls, filename: str, use_multiphase: bool = False, trainable: bool = True):
         """Load Microstructure from npy-file (by calling the constructor) or from pickle-file,
         in which case the pickled Microstructure object is returned and __init__ is not called.
         Note that the kwargs use_multiphase and trainable are only used if the Microstructure
         is loaded from a npy-file. Internally, this function merely checks the filename ending
         and calls Microstructure.from_npy or Microstructure.from_pickle.
         """
-        if filename.endswith('.npy'):
+        if filename.endswith(".npy"):
             ms = cls.from_npy(filename, use_multiphase=use_multiphase, trainable=trainable)
-        elif filename.endswith('.pickle'):
-            logging.info('Loading from pickle, hence ignoring further kwargs.')
+        elif filename.endswith(".pickle"):
+            logging.info("Loading from pickle, hence ignoring further kwargs.")
             ms = cls.from_pickle(filename)
         else:
-            raise NotImplementedError('Filetype not supported')
+            raise NotImplementedError("Filetype not supported")
         return ms
 
     @classmethod
@@ -167,7 +177,7 @@ class Microstructure:
         """Load a Microstructure from a pickle file, assert that it is indeed a Microstructure
         and return it.
         """
-        with open(filename, 'rb') as f:
+        with open(filename, "rb") as f:
             ms = pickle.load(f)
         assert isinstance(ms, cls)
         return ms
@@ -183,24 +193,25 @@ class Microstructure:
         return cls(array, use_multiphase=use_multiphase, trainable=trainable, ori_repr=ori_repr)
 
     def save(self, filename: str):
-        logging.info(f'saving microstructure to {filename}')
-        if filename.endswith('.npy'):
+        logging.info(f"saving microstructure to {filename}")
+        if filename.endswith(".npy"):
             self.to_npy(filename)
-        elif filename.endswith('.pickle'):
+        elif filename.endswith(".pickle"):
             self.to_pickle(filename)
         else:
-            raise NotImplementedError('Filetype not supported')
+            raise NotImplementedError("Filetype not supported")
 
     def to_damask(self, filename: str):
-        assert filename.endswith('.vti')
+        assert filename.endswith(".vti")
         import damask
+
         ms = self.decode_phases().reshape(self.spatial_shape)
         grid = (1, 1, 1) if self.is_3D else (1, 1)
         damask_grid = damask.Grid(ms, grid)
         damask_grid.save(filename[:-4])
 
     def to_pickle(self, filename: str):
-        with open(filename, 'wb') as f:
+        with open(filename, "wb") as f:
             pickle.dump(self, f)
 
     def to_npy(self, filename: str):
@@ -213,17 +224,19 @@ class Microstructure:
         np.save(filename, microstructure)
 
     def to_paraview(self, filename: str):
-        assert LOADED_GRIDTOVTK, 'Cannot export to paraview because gridToVTK import failed - please install optional dependency gridToVTK'
-        logging.info(f'Exporting to {filename}')
+        assert (
+            LOADED_GRIDTOVTK
+        ), "Cannot export to paraview because gridToVTK import failed - please install optional dependency gridToVTK"
+        logging.info(f"Exporting to {filename}")
         coords_x = np.arange(0, self.shape[0] + 1)
         coords_y = np.arange(0, self.shape[1] + 1)
         coords_z = np.arange(0, self.shape[2] + 1)
         if self.has_phases:
-            cellData = {'phase_ids': self.decode_phases(raw=True)}
+            cellData = {"phase_ids": self.decode_phases(raw=True)}
         else:
             raise NotImplementedError()
 
-        gridToVTK(filename[:-4], coords_x, coords_y, coords_z, cellData = cellData)
+        gridToVTK(filename[:-4], coords_x, coords_y, coords_z, cellData=cellData)
 
     def __repr__(self):
         representation = f"""MCRpy Microstructure object at {id(self)} 
@@ -240,9 +253,8 @@ class Microstructure:
         """Returns an iterator over indices of spatial fields. Usage:
         for spatial_index in microstructure:
             # do something
-            raise NotImplementedError() """
+            raise NotImplementedError()"""
         return itertools.product(*[range(e) for e in self.spatial_shape])
-
 
     @contextmanager
     def use_singlephase_encoding(self):
@@ -302,16 +314,17 @@ class Microstructure:
         x_e_reshaped = tf.reshape(x_s2b[slice_index], batch_element_shape)
         x_e_reshaped.set_shape(batch_element_shape)
         if self.has_orientations:
-            x_e_reshaped = self.ori_repr(x_e_reshaped) # TODO hier drehen je nach x y z mgl
+            x_e_reshaped = self.ori_repr(x_e_reshaped)  # TODO hier drehen je nach x y z mgl
         return x_e_reshaped
 
     def get_slice_iterator(self, dimension: int):
-        assert self.is_3D 
+        assert self.is_3D
+
         def my_generator(dimension):
             for slice_number in range(self.spatial_shape[dimension]):
                 yield self.get_slice(dimension, slice_number)
-        return my_generator(dimension)
 
+        return my_generator(dimension)
 
     def decode_phase_array(self, phase_array: tf.Tensor, specific_phase: int = None, raw: bool = False) -> np.ndarray:
         assert self.has_phases
@@ -327,7 +340,7 @@ class Microstructure:
             result = phase_array.numpy()[..., specific_phase]
             return result if raw else np.round(result)
         array_np = phase_array.numpy()
-        n_entries = np.product(array_np.shape) // self.n_phases
+        n_entries = np.prod(array_np.shape) // self.n_phases
         array_reshaped = array_np.reshape((n_entries, -1))
         array_decoded = np.zeros(n_entries)
         for pixel in range(n_entries):

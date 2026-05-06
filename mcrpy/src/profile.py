@@ -4,6 +4,7 @@ import tensorflow as tf
 
 PROFILE = False
 
+
 def maybe_trace(name: str):
     def decorate(f: callable):
         @functools.wraps(f)
@@ -13,8 +14,11 @@ def maybe_trace(name: str):
                     result = f(*args, **kwargs)
                 return result
             return f(*args, **kwargs)
+
         return wrapper
+
     return decorate
+
 
 def maybe_profile(logdir: str):
     def decorate(f: callable):
@@ -26,5 +30,7 @@ def maybe_profile(logdir: str):
                 tf.profiler.experimental.stop()
                 return result
             return f(*args, **kwargs)
+
         return wrapper
+
     return decorate

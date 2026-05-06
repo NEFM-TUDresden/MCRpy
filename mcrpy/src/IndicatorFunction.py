@@ -10,7 +10,7 @@ tf.keras.backend.set_floatx("float64")
 
 
 class IndicatorFunction(tf.experimental.ExtensionType):
-    x: tf.Tensor # 1 I J (K) n_phases
+    x: tf.Tensor  # 1 I J (K) n_phases
 
     def __call__(self):
         return self.x
@@ -42,7 +42,7 @@ class IndicatorFunction(tf.experimental.ExtensionType):
         if self.n_phases == 1:
             return self
         if self.n_phases > 2:
-            raise ValueError('too many phases to drop indicator function representatiton')
+            raise ValueError("too many phases to drop indicator function representatiton")
         first_phase = tf.gather(self.x, [1], axis=-1)
         return IndicatorFunction(first_phase)
 
@@ -59,7 +59,7 @@ class IndicatorFunction(tf.experimental.ExtensionType):
             result = phase_array.numpy()[..., specific_phase]
             return result if raw else np.round(result)
         array_np = phase_array.numpy()
-        n_entries = np.product(array_np.shape) // self.n_phases
+        n_entries = np.prod(array_np.shape) // self.n_phases
         array_reshaped = array_np.reshape((n_entries, -1))
         array_decoded = np.zeros(n_entries)
         for pixel in range(n_entries):
@@ -76,6 +76,7 @@ class IndicatorFunction(tf.experimental.ExtensionType):
 
 if __name__ == "__main__":
     from mcrpy import Microstructure
-    ms = Microstructure.from_npy('../../microstructures/pymks_ms_64x64.npy')
+
+    ms = Microstructure.from_npy("../../microstructures/pymks_ms_64x64.npy")
     ifs = IndicatorFunction(ms.x).as_singlephase()
     assert ifs.as_multiphase().as_singlephase() == ifs

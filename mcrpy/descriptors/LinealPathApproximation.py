@@ -123,7 +123,7 @@ class LinealPathApproximation(PhaseDescriptor):
             desired_descriptor_shape: Tuple[int] = None, 
             limit_to: int = None, 
             **kwargs):
-        assert desired_descriptor_shape[-1] == np.product(desired_descriptor_shape)
+        assert desired_descriptor_shape[-1] == np.prod(desired_descriptor_shape)
         current_descriptor_n = sum((i - 1) * 2 for i in range(3, 2*(limit_to + 1), 2)) + 1
         desired_descriptor_n = desired_descriptor_shape[-1]
 

@@ -1,20 +1,21 @@
 """
-   Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
-   Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
-   Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,19 +32,20 @@ class TwoPointCorrelations(PhaseDescriptor):
     is_differentiable = True
 
     @staticmethod
-    def make_singlephase_descriptor( 
-            desired_shape_2d=(64, 64), 
-            limit_to: int = 8, 
-            l_threshold_value=0.75, 
-            threshold_steepness=10, 
-            **kwargs) -> callable:
+    def make_singlephase_descriptor(
+        desired_shape_2d=(64, 64), limit_to: int = 8, l_threshold_value=0.75, threshold_steepness=10, **kwargs
+    ) -> callable:
         H, W = desired_shape_2d
         H_conv = limit_to
         W_conv = limit_to
-        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
-        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        z_lower_bound = tf.cast(
+            1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64
+        )
+        z_upper_bound = tf.cast(
+            1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64
+        )
         a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
-        b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
+        b = tf.cast(-a * z_lower_bound, dtype=tf.float64)
 
         tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
 
@@ -89,7 +91,7 @@ class TwoPointCorrelations(PhaseDescriptor):
             filter_values_tf = tf.cast(tf.constant(filter_values), tf.float64)
             filter_denseshape_tf = tf.constant(filter_denseshape)
             filters_tf_unordered = tf.sparse.SparseTensor(filter_indices_tf, filter_values_tf, filter_denseshape_tf)
-            filters_tf = tf.sparse.reorder(filters_tf_unordered) 
+            filters_tf = tf.sparse.reorder(filters_tf_unordered)
             filters_tf_dense = tf.sparse.to_dense(filters_tf)
             filters_tf_dense = tf.cast(filters_tf_dense, tf.float64)
             return filters_tf_dense
@@ -106,7 +108,6 @@ class TwoPointCorrelations(PhaseDescriptor):
             img_convolved_fixed = tf.concat([positives, negatives_fixed], 3)
             return img_convolved_fixed
 
-
         @tf.function
         def normalized_gm(activations: tf.Tensor, layer_area: int, n_channels: int) -> tf.Tensor:
             F = tf.reshape(activations, (layer_area, n_channels))
@@ -116,45 +117,44 @@ class TwoPointCorrelations(PhaseDescriptor):
 
         @tf.function
         def l_gram(img_thresholded: tf.Tensor) -> tf.Tensor:
-            _, img_height, img_width, out_channels = img_thresholded.shape.as_list()
+            shape = img_thresholded.shape
+            _, img_height, img_width, out_channels = shape.as_list() if hasattr(shape, "as_list") else tuple(shape)
             layer_area = img_height * img_width
             img_gramed = normalized_gm(img_thresholded, layer_area, out_channels)
             return img_gramed
+
         @tf.function
         def l_gram_function(img_thresholded: tf.Tensor) -> tf.Tensor:
             img_gramed = tf.linalg.tensor_diag_part(l_gram(img_thresholded))
             return img_gramed
+
         filters = make_dense_filters()
 
         @tf.function
         def model(mg_input):
             img_tiled = tile_img(mg_input)
-            img_convolved = tf.nn.conv2d(img_tiled, filters=filters,
-                    strides=[1, 1, 1, 1], padding='VALID')
+            img_convolved = tf.nn.conv2d(img_tiled, filters=filters, strides=[1, 1, 1, 1], padding="VALID")
             img_convolved_fixed = fix_ensemble_shift(img_convolved)
             img_thresholded = tf.nn.sigmoid((img_convolved_fixed - l_threshold_value) * threshold_steepness) * a + b
             mg_gram = l_gram_function(img_thresholded)
             return mg_gram
+
         return model
 
     @staticmethod
-    def define_comparison_mask(
-            desired_descriptor_shape: Tuple[int] = None, 
-            limit_to: int = None, 
-            **kwargs):
+    def define_comparison_mask(desired_descriptor_shape: Tuple[int] = None, limit_to: int = None, **kwargs):
         # sourcery skip: for-append-to-extend, list-comprehension, use-itertools-product
         assert len(desired_descriptor_shape) == 1
-        desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[0] - 0.25),
-                decimals=0).astype(int)
-        logging.info(f'limit_to for desired_descriptor is {desired_limit_to}')
-        logging.info(f'limit_to for current is {limit_to}')
+        desired_limit_to = np.round(0.5 + np.sqrt(0.5 * desired_descriptor_shape[0] - 0.25), decimals=0).astype(int)
+        logging.info(f"limit_to for desired_descriptor is {desired_limit_to}")
+        logging.info(f"limit_to for current is {limit_to}")
 
         if limit_to == desired_limit_to:
             return None, False
 
         larger_limit_to = max(limit_to, desired_limit_to)
         smaller_limit_to = min(limit_to, desired_limit_to)
-        larger_n_elements = larger_limit_to**2 + (larger_limit_to - 1)**2
+        larger_n_elements = larger_limit_to**2 + (larger_limit_to - 1) ** 2
         boolean_list = []
         for i in range(larger_limit_to):
             for j in range(larger_limit_to):
@@ -167,18 +167,14 @@ class TwoPointCorrelations(PhaseDescriptor):
 
     @classmethod
     def visualize_subplot(
-            cls,
-            descriptor_value: np.ndarray,
-            ax,
-            descriptor_type: str = None,
-            mg_level: int = None,
-            n_phase: int = None):
+        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+    ):
         x_max = descriptor_value.shape
         limit_to = np.round(0.5 + np.sqrt(0.5 * x_max - 0.25), decimals=0).astype(int)
         xticks = [0, limit_to - 1, 2 * (limit_to - 1)]
         yticks = [0, limit_to - 1, 2 * (limit_to - 1)]
         s2_descriptor = descriptor_value
-        s2_sorted = np.zeros(tuple([2 * limit_to - 1]*2))
+        s2_sorted = np.zeros(tuple([2 * limit_to - 1] * 2))
         k = 0
         for i in range(limit_to):
             for j in range(limit_to):
@@ -190,10 +186,10 @@ class TwoPointCorrelations(PhaseDescriptor):
                 s2_sorted[limit_to - 1 + i, limit_to - 1 - j] = s2_descriptor[k]
                 s2_sorted[limit_to - 1 - i, limit_to - 1 + j] = s2_descriptor[k]
                 k += 1
-        ax.imshow(s2_sorted, cmap='cividis')
-        ax.set_title(f'S2: l={mg_level}, p={n_phase}')
-        ax.set_xlabel(r'$r_x$ in Px')
-        ax.set_ylabel(r'$r_y$ in Px')
+        ax.imshow(s2_sorted, cmap="cividis")
+        ax.set_title(f"S2: l={mg_level}, p={n_phase}")
+        ax.set_xlabel(r"$r_x$ in Px")
+        ax.set_ylabel(r"$r_y$ in Px")
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
         ax.set_xticklabels([-limit_to + 1, 0, limit_to - 1])
