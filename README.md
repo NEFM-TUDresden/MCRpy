@@ -42,7 +42,9 @@ A key feature of MCRpy is its modularity and extensibility: You can combine **an
 ### Simple install
 To quickly get started, just install via pip using 
 
-`pip install mcrpy`
+```bash 
+pip install mcrpy
+```
 
 But beware that this does not install the latest version from GitHub and it does not allow to edit the Code and add plugins. We therefore recommend the editable install.
 
@@ -50,7 +52,9 @@ But beware that this does not install the latest version from GitHub and it does
 Extensibility is a central advantage of MCRpy. If you want to define your own descriptors and use them for reconstruction, you need an editable install (note the dot at the end). 
 This will also download the example images and microstructures.
 
-`git clone https://github.com/NEFM-TUDresden/MCRpy.git ; pip install -e . `
+```bash
+git clone https://github.com/NEFM-TUDresden/MCRpy.git ; pip install -e . 
+```
 
 ### For HPC
 On HPC clusters, it can be challenging to pip-install a Python package and at the same time keep access to pre-compiled modules like tensorflow. If the tensorflow installation has not been compiled for the correct hardware, the MCRpy performance can be quite underwhelming. A simple solution is to 
@@ -141,7 +145,9 @@ In this window, you can
 The most efficient way to use MCRpy is probably by the command line interface, allowing for automation and HPC application. The same outcome as in the GUI example can be obtained by simply typing
 
 ```bash
-match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy --descriptor_types Correlations Variation --descriptor_weights 1 100 --add_dimension 64  --no_multiphase --limit_to 8
+match.py --microstructure_filename microstructures/pymks_ms_64x64_1.npy \
+         --descriptor_types Correlations Variation --descriptor_weights 1 100 \
+         --add_dimension 64 --no_multiphase --limit_to 8
 ```
 
 Note that all settings have the same name as in the GUI.
