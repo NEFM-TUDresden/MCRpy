@@ -225,7 +225,7 @@ Do the same thing in 3D. Here, you need to include the variation to the descript
 
 ```bash
 mcrpy_match--microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
-                --limit_to 8 --descriptor_types Correlations Variation
+                --limit_to 8 --descriptor_types Correlations Variation \
                 --descriptor_weights 1 100 --add_dimension 64 \
                 --use_multigrid_reconstruction
 ```
