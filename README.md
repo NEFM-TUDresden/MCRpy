@@ -145,7 +145,7 @@ In this window, you can
 The most efficient way to use MCRpy is probably by the command line interface, allowing for automation and HPC application. The same outcome as in the GUI example can be obtained by simply typing
 
 ```bash
-match.py --microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
+mcrpy_match --microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
          --descriptor_types Correlations Variation --descriptor_weights 1 100 \
          --add_dimension 64 --no_multiphase --limit_to 8
 ```
@@ -154,10 +154,10 @@ Note that all settings have the same name as in the GUI.
 
 You can automate this in loops very simply to reconstruct multiple microstructures. The index `i` is passed to the `--information` argument to have it added to all filenames, so the files don't override each other.
 ```bash
-python characterize.py ms_slice.npy --limit_to 8 --descriptor_types Correlations Variation
+mcrpy_characterize ms_slice.npy --limit_to 8 --descriptor_types Correlations Variation
 for i in {1..9} 
 do
-    python reconstruct.py --descriptor_filename results/ms_slice_characterization.pickle \
+    mcrpy_reconstruct --descriptor_filename results/ms_slice_characterization.pickle \
         --extent_x 64 --extent_y 64 --extent_z 64 --limit_to 8 --information ${i} \ 
         --descriptor_types Correlations Variation --descriptor_weights 1 100
 done
@@ -209,14 +209,14 @@ The example gallery uses MCRpy on the command line for brevity, but you can do t
 Simple 2D match using Correlations only.
 
 ```bash
-python match.py --microstructure_filename example_microstructures/pymks_ms_64x64_2. \
+mcrpy_match--microstructure_filename example_microstructures/pymks_ms_64x64_2. \
                 --limit_to 16 --descriptor_types Correlations
 ```
 
 Do the same thing faster by reducing `limit_to` from its default `16` to `8` and by using multigrid reconstruction.
 
 ```bash
-python match.py --microstructure_filename example_microstructures/pymks_ms_64x64_2.npy \
+mcrpy_match--microstructure_filename example_microstructures/pymks_ms_64x64_2.npy \
                 --limit_to 8 --descriptor_types Correlations \
                 --use_multigrid_reconstruction
 ```
@@ -224,7 +224,7 @@ python match.py --microstructure_filename example_microstructures/pymks_ms_64x64
 Do the same thing in 3D. Here, you need to include the variation to the descriptors and set the corresponding weight very high, otherwise you will get noisy results.
 
 ```bash
-python match.py --microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
+mcrpy_match--microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
                 --limit_to 8 --descriptor_types Correlations Variation
                 --descriptor_weights 1 100 --add_dimension 64 \
                 --use_multigrid_reconstruction
@@ -233,7 +233,7 @@ python match.py --microstructure_filename example_microstructures/pymks_ms_64x64
 Do the same thing using also with Gram matrices as descriptors. For Gram matrices, `limit_to` can not be as low as `8` because otherise the internal average-pooling of the VGG-19 would have feature maps of shape 0 or less.
 
 ```bash
-python match.py --microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
+mcrpy_match--microstructure_filename example_microstructures/pymks_ms_64x64_1.npy \
                 --descriptor_types Correlations Variation GramMatrices \
                 --descriptor_weights 1 100 1 --limit_to 16 \
                 --add_dimension 64 --use_multigrid_reconstruction
@@ -242,14 +242,14 @@ python match.py --microstructure_filename example_microstructures/pymks_ms_64x64
 You can also just characterize the microstructure without reconstructing it:
 
 ```bash
-python characterize.py example_microstructures/pymks_ms_64x64_2.npy \
+mcrpy_characterize example_microstructures/pymks_ms_64x64_2.npy \
        --limit_to 16 --descriptor_types Correlations Variation GramMatrices
 ```
 
 And then reconstruct later:
 
 ```bash
-python reconstruct.py --descriptor_filename results/pymks_ms_64x64_2_characterization.npy \
+mcrpy_reconstruct --descriptor_filename results/pymks_ms_64x64_2_characterization.npy \
                         --descriptor_types Correlations Variation GramMatrices \
                         --descriptor_weights 1 100 1 \
                         --extent_x 64 --extent_y 64 --extent_z 64 \
@@ -259,20 +259,20 @@ python reconstruct.py --descriptor_filename results/pymks_ms_64x64_2_characteriz
 You can view the original and reconstructed microstructure:
 
 ```bash
-python view.py example_microstructures/pymks_ms_64x64_2.npy
-python view.py results/last_frame.npy
+mcrpy_view example_microstructures/pymks_ms_64x64_2.npy
+mcrpy_view results/last_frame.npy
 ```
 
 If the microstructure is 3D, then you cannot directly view it, but you can add the savefig-keyword to export it to paraview.
 
 ```bash
-python view.py results/last_frame.npy --savefig
+mcrpy_view results/last_frame.npy --savefig
 ```
 
 And to view the convergence data:
 
 ```bash
-python view.py results/convergence_data.pickle
+mcrpy_view results/convergence_data.pickle
 ```
 
 ### Single-phase vs multi-phase
@@ -284,21 +284,21 @@ For example, `alloy_resized_s.npy` has the grain boundaries marked as `0` and th
 The following will fail:
 
 ```bash
-python match.py --microstructure_filename example_microstructures/alloy_resized_s.npy \
+mcrpy_match--microstructure_filename example_microstructures/alloy_resized_s.npy \
                 --descriptor_types Correlations --no_multiphase
 ```
 
 The second example, `alloy_inverted_s.npy` has phases `0` and `1` swapped and can be reconstructed easily:
 
 ```bash
-python match.py --microstructure_filename example_microstructures/alloy_inverted_s.npy \
+mcrpy_match--microstructure_filename example_microstructures/alloy_inverted_s.npy \
                 --descriptor_types Correlations --no_multiphase
 ```
 
 So it would make sense to use multiphase to just describe both phases and be safe, right?
 
 ```bash
-python match.py --microstructure_filename example_microstructures/alloy_resized_s.npy \
+mcrpy_match--microstructure_filename example_microstructures/alloy_resized_s.npy \
                 --descriptor_types Correlations
 ```
 
@@ -316,7 +316,7 @@ There are two settings, `use_multigrid_descriptors` and `use_multigrid_reconstru
 The convergence curve below comes from the following command:
 
 ```bash
-python match.py --microstructure_filename example_microstructures/alloy_inverted_s.npy \
+mcrpy_match--microstructure_filename example_microstructures/alloy_inverted_s.npy \
                 --descriptor_types Correlations \
                 --no_multiphase --use_multigrid_reconstruction
 ```
@@ -327,7 +327,7 @@ python match.py --microstructure_filename example_microstructures/alloy_inverted
 As shown in [this paper](https://www.sciencedirect.com/science/article/abs/pii/S1359645422000520) in Figure 8, there seems to be no single best descriptor for all microstructures, but the optimal choice depends on the microstructure. For example, correlations perform very well for most example microstructures, but not for te copolymer. In this case, Gram matrices are better.
 
 ```bash
-python match.py --microstructure_filename example_microstructures/copolymer_resized_s.npy \
+mcrpy_match--microstructure_filename example_microstructures/copolymer_resized_s.npy \
                 --descriptor_types GramMatrices
 ```
 
