@@ -124,7 +124,8 @@ class LineCorrelations(PhaseDescriptor):
 
         @tf.function
         def l_gram_function(img_thresholded: tf.Tensor) -> tf.Tensor:
-            _, img_height, img_width, out_channels = img_thresholded.shape.as_list()
+            shape = img_thresholded.shape
+            _, img_height, img_width, out_channels = shape.as_list() if hasattr(shape, 'as_list') else tuple(shape)
             layer_area = img_height * img_width
             img_gramed = normalized_gm(img_thresholded, layer_area, out_channels)
             return img_gramed
