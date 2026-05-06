@@ -1,20 +1,21 @@
 """
-   Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
-   Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
-   Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
 from __future__ import annotations
 from typing import Union, Tuple, List
 
@@ -23,26 +24,33 @@ import numpy as np
 
 from mcrpy.src.Microstructure import Microstructure
 
+
 def make_2d_nograds(loss_function: callable) -> callable:
-    """Return a function that computes the loss function given a 2D 
-    microstructure. 
+    """Return a function that computes the loss function given a 2D
+    microstructure.
     """
+
     def loss_computation_inner(ms: Microstructure):
         loss = loss_function(ms.xx)
         return loss
+
     return loss_computation_inner
+
 
 def make_2d_gradients(loss_function: callable) -> callable:
     """Return a function that computes the loss function and its gradient
-    given a 2D microstructure. 
+    given a 2D microstructure.
     """
+
     def gradient_computation(ms: Microstructure):
         optimize_var = [ms.x]
         with tf.GradientTape(persistent=False) as tape:
             loss = loss_function(ms.xx)
             grads = tape.gradient(loss, optimize_var)
         return loss, grads
+
     return gradient_computation
+
 
 # def make_2d_gradients(loss_function: callable) -> callable:
 #     from jax import value_and_grad
@@ -58,9 +66,10 @@ def make_2d_gradients(loss_function: callable) -> callable:
 #         return tf.cast(val, tf.float64), tf.cast(grad, tf.float64)
 #     return inner
 
+
 def make_3d_gradients(
-        loss_function: Union[callable, List[callable], Tuple[callable]], 
-        shape_3d: Tuple[int]) -> callable:
+    loss_function: Union[callable, List[callable], Tuple[callable]], shape_3d: Tuple[int]
+) -> callable:
     """Return a function that computes the loss function and its gradient
     given a 3D microstructure. Does not use tf.GradientTape trivially
     because of memory issues, but swaps the gradient and the sum over all
@@ -91,11 +100,11 @@ def make_3d_gradients(
 
     return repetitive_gradient_accumulation
 
+
 def make_3d_gradients_greedy(
-        loss_function: Union[callable, List[callable], Tuple[callable]], 
-        shape_3d: Tuple[int],
-        batch_size: int = 1) -> callable:
-    """Greedily compute just a random slice and return the result. """
+    loss_function: Union[callable, List[callable], Tuple[callable]], shape_3d: Tuple[int], batch_size: int = 1
+) -> callable:
+    """Greedily compute just a random slice and return the result."""
     anisotropic = isinstance(loss_function, (tuple, list))
 
     zero_grads = tf.constant(np.zeros((1, *shape_3d), dtype=np.float64), dtype=tf.float64)
@@ -107,14 +116,10 @@ def make_3d_gradients_greedy(
         total_loss = 0
         for spatial_dim in range(3):
             use_loss = loss_function[spatial_dim] if anisotropic else loss_function
-            n_slices = (
-                batch_size
-                if batch_size >= 1
-                else int(ms.spatial_shape[spatial_dim] * batch_size)
+            n_slices = batch_size if batch_size >= 1 else int(ms.spatial_shape[spatial_dim] * batch_size)
+            slice_indices = tf.cast(
+                tf.random.uniform([n_slices], minval=0, maxval=ms.spatial_shape[spatial_dim]), tf.int32
             )
-            slice_indices = tf.cast(tf.random.uniform(
-                [n_slices], minval=0, maxval=ms.spatial_shape[spatial_dim]),
-                tf.int32)
             for n_slice in range(n_slices):
                 with tf.GradientTape() as tape:
                     ms_slice = ms.get_slice(spatial_dim, slice_indices[n_slice])
@@ -125,6 +130,7 @@ def make_3d_gradients_greedy(
         return total_loss, [grads]
 
     return repetitive_gradient_accumulation
+
 
 def make_3d_star(loss_function: callable) -> callable:
     """Return a function that computes the loss function and its gradient
@@ -155,9 +161,7 @@ def make_3d_star(loss_function: callable) -> callable:
     return loss_accumulation
 
 
-def make_3d_nograds(
-        loss_function: Union[callable, List[callable], Tuple[callable]], 
-        shape_3d: Tuple[int]) -> callable:
+def make_3d_nograds(loss_function: Union[callable, List[callable], Tuple[callable]], shape_3d: Tuple[int]) -> callable:
     """Same as make_3d_star, but without gradients."""
     anisotropic = isinstance(loss_function, (tuple, list))
 
@@ -171,13 +175,15 @@ def make_3d_nograds(
 
     return loss_accumulation
 
+
 def make_call_loss(
-        loss_function: Union[callable, List[callable], Tuple[callable]], 
-        ms: Microstructure, 
-        is_gradient_based: bool, 
-        sparse: bool = False,
-        greedy: bool = False,
-        batch_size: int = 1) -> callable:  # sourcery skip: remove-redundant-if
+    loss_function: Union[callable, List[callable], Tuple[callable]],
+    ms: Microstructure,
+    is_gradient_based: bool,
+    sparse: bool = False,
+    greedy: bool = False,
+    batch_size: int = 1,
+) -> callable:  # sourcery skip: remove-redundant-if
     """Make and return a function that computes the loss_function and
     possibly the gradient given a Microstructure.
     """
@@ -198,4 +204,4 @@ def make_call_loss(
         else:
             return make_3d_gradients(loss_function, ms.shape)
     else:
-        raise ValueError('Desired shape must be 2D or 3D')
+        raise ValueError("Desired shape must be 2D or 3D")

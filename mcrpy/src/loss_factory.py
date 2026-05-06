@@ -1,20 +1,21 @@
 """
-   Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
-   Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
-   Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
 from __future__ import annotations
 
 import os
@@ -23,9 +24,11 @@ from typing import Any, Callable, Dict, Tuple, Union
 from mcrpy.losses.Loss import Loss
 
 loss_creation_functions: Dict[str, Callable[..., Loss]] = {}
-loss_choices = [d[:-3] for d in os.listdir(
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'losses')) 
-    if d.endswith('.py') and d not in {'Loss.py', '__init__.py'}]
+loss_choices = [
+    d[:-3]
+    for d in os.listdir(os.path.join(os.path.dirname(os.path.dirname(__file__)), "losses"))
+    if d.endswith(".py") and d not in {"Loss.py", "__init__.py"}
+]
 
 
 def register(loss_type: str, creator_fn: Callable[..., Loss]) -> None:
@@ -37,18 +40,19 @@ def unregister(loss_type: str) -> None:
 
 
 def create(loss_type: str, arguments: Dict[str, Any], non_cubic_3d: bool = False) -> Union[Loss, Tuple[Loss]]:
-    assert 'anisotropic' in arguments
-    if not arguments['anisotropic']:
+    assert "anisotropic" in arguments
+    if not arguments["anisotropic"]:
         return try_create(loss_type, arguments)
     losses = []
     for dim in range(3):
         args_copy = arguments.copy()
-        d_des_lst = [d_des[dim] for d_des in arguments['desired_descriptor_list']]
-        args_copy['desired_descriptor_list'] = d_des_lst
+        d_des_lst = [d_des[dim] for d_des in arguments["desired_descriptor_list"]]
+        args_copy["desired_descriptor_list"] = d_des_lst
         if non_cubic_3d:
-            args_copy['descriptor_list'] = arguments['descriptor_list'][dim]
+            args_copy["descriptor_list"] = arguments["descriptor_list"][dim]
         losses.append(try_create(loss_type, args_copy))
     return tuple(losses)
+
 
 def try_create(loss_type: str, arguments: Dict[str, Any]) -> Loss:
     try:
@@ -57,4 +61,3 @@ def try_create(loss_type: str, arguments: Dict[str, Any]) -> Loss:
         raise ValueError(f"Unknown loss type {loss_type!r}") from None
     args_copy = arguments.copy()
     return creator_func(**args_copy)
-
