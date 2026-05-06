@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import gooey
 import logging
+from pathlib import Path
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from mcrpy.characterize import main as main_characterize
@@ -76,6 +77,7 @@ def str2bool(string):
         clear_before_run=True,
         progress_regex=r"^Iteration (?P<current>\d+) of (?P<total>\d+)",
         progress_expr="current / total * 100",
+        image_dir=Path(__file__).parent.parent / 'images',
         )
 def call_main():
     parser = gooey.GooeyParser(description='Microstructure Characterization and Reconstruction in Python')
