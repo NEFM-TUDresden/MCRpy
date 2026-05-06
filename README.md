@@ -210,14 +210,14 @@ Simple 2D match using Correlations only.
 
 ```bash
 mcrpy_match --microstructure_filename example_microstructures/pymks_ms_64x64_2.npy \
-                --limit_to 16 --descriptor_types Correlations
+                --limit_to 16 --descriptor_types FFTCorrelations
 ```
 
 Do the same thing faster by reducing `limit_to` from its default `16` to `8` and by using multigrid reconstruction.
 
 ```bash
 mcrpy_match --microstructure_filename example_microstructures/pymks_ms_64x64_2.npy \
-                --limit_to 8 --descriptor_types Correlations \
+                --limit_to 8 --descriptor_types FFTCorrelations \
                 --use_multigrid_reconstruction
 ```
 
