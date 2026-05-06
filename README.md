@@ -209,7 +209,7 @@ The example gallery uses MCRpy on the command line for brevity, but you can do t
 Simple 2D match using Correlations only.
 
 ```bash
-mcrpy_match --microstructure_filename example_microstructures/pymks_ms_64x64_2. \
+mcrpy_match --microstructure_filename example_microstructures/pymks_ms_64x64_2.npy \
                 --limit_to 16 --descriptor_types Correlations
 ```
 
