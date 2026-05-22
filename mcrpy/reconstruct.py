@@ -67,15 +67,35 @@ def save_results(settings, convergence_data, last_frame):
     # add settings to convergence data
     convergence_data["settings"] = settings
 
-    # save convergence data
-    save_convergence_data(convergence_data, foldername, information_additives=information_additives)
+    # derive base name from input descriptor filename if available
+    descriptor_filename = getattr(settings, "descriptor_filename", None)
+    if descriptor_filename:
+        base = os.path.splitext(os.path.basename(descriptor_filename))[0]
+        # remove trailing _characterization if present
+        if base.endswith("_characterization"):
+            base = base[: -len("_characterization")]
+    else:
+        base = "convergence_data"
 
-    # save last state separately
-    save_last_state(last_frame, information_additives, foldername)
+    # save convergence data and last state using derived names
+    convergence_out = os.path.join(foldername, f"{base}_convergence_data{information_additives}.pickle")
+    save_convergence_data(convergence_data, convergence_out)
+
+    last_frame_out = os.path.join(foldername, f"{base}_reconstructed{information_additives}.npy")
+    save_last_state(last_frame, last_frame_out)
 
 
-def save_last_state(last_frame, information_additives, foldername):
-    np_data_filename = os.path.join(foldername, f"last_frame{information_additives}.npy")
+def save_last_state(last_frame, out_path_or_folder, information_additives: str = ""):
+    """Save last_frame to disk.
+
+    `out_path_or_folder` may be a full filename or a folder path. If it's a folder,
+    the function will construct a filename in that folder. If it's a filename, it
+    will be used directly.
+    """
+    if os.path.isdir(out_path_or_folder) or out_path_or_folder == "":
+        np_data_filename = os.path.join(out_path_or_folder, f"last_frame{information_additives}.npy")
+    else:
+        np_data_filename = out_path_or_folder
     last_frame.to_npy(np_data_filename)
 
 
@@ -100,11 +120,19 @@ def prepare_reconstruction(args):
     return descriptor_dict, desired_shape, initial_microstructure, settings
 
 
-def save_convergence_data(convergence_data: Dict[str, Any], foldername: str, information_additives: str = ""):
-    filename = f"convergence_data{information_additives}.pickle"
-    convergence_data_filename = os.path.join(foldername, filename)
-    with open(convergence_data_filename, "wb") as f:
-        pickle.dump(convergence_data, f, protocol=4)
+def save_convergence_data(convergence_data: Dict[str, Any], out_path: str):
+    """Save convergence data as a numpy file (allowing pickle inside) to `out_path`.
+
+    `out_path` is expected to be a full file path (including filename).
+    """
+    # Ensure parent directory exists
+    parent = os.path.dirname(out_path)
+    if parent and not os.path.exists(parent):
+        os.makedirs(parent, exist_ok=True)
+    # Use numpy to save the dict as an .npy file (allowing pickled objects)
+    with open(out_path, "wb") as fb:
+        pickle.dump(convergence_data, fb)
+    # np.save(out_path, convergence_data, allow_pickle=True)
 
 
 @log.log_this

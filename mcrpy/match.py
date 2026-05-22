@@ -41,7 +41,7 @@ with contextlib.suppress(Exception):
 # print('#######################################################')
 
 from mcrpy.characterize import characterize, save_characterization
-from mcrpy.reconstruct import reconstruct, save_convergence_data
+from mcrpy.reconstruct import reconstruct, save_convergence_data, save_last_state
 from mcrpy.src import fileutils
 from mcrpy.src.Settings import MatchingSettings, CharacterizationSettings, ReconstructionSettings, select_subsettings
 from mcrpy.src.Microstructure import Microstructure
@@ -78,16 +78,20 @@ def save_results(settings, microstructure_filename, characterization, convergenc
     # save characterization
     save_characterization(characterization, info_file_additive, settings.target_folder)
 
-    # save convergence data
-    save_convergence_data(convergence_data, foldername, information_additives=information_additives)
+    # derive base name from input microstructure filename and strip _characterization if present
+    base = os.path.splitext(os.path.basename(microstructure_filename))[0]
+    if base.endswith("_characterization"):
+        base = base[: -len("_characterization")]
 
-    # save last state separately
-    save_last_state(last_frame, information_additives, foldername)
+    # save convergence data and last state using derived names
+    convergence_out = os.path.join(foldername, f"{base}_convergence_data{information_additives}.pickle")
+    save_convergence_data(convergence_data, convergence_out)
+
+    last_frame_out = os.path.join(foldername, f"{base}_reconstructed{information_additives}.npy")
+    save_last_state(last_frame, last_frame_out)
 
 
-def save_last_state(last_frame, information_additives, foldername):
-    np_data_filename = os.path.join(foldername, f"last_frame{information_additives}.npy")
-    last_frame.to_npy(np_data_filename)
+# note: saving of last state is handled by save_last_state imported from mcrpy.reconstruct
 
 
 def prepare_saving(settings, microstructure_filename):
