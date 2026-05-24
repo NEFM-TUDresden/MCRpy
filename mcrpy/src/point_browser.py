@@ -67,6 +67,7 @@ class PointBrowser(object):
         ylabel: str = "Cost",
         settings: ReconstructionSettings = None,
         log_axis: bool = True,
+        save_as: str = None,
     ):
         self.intermediate_microstructures = [
             (
@@ -121,7 +122,7 @@ class PointBrowser(object):
             self.ax.set_yscale("log")
         (self.line,) = self.ax.plot(self.xs, self.ys, "o", picker=True)  # 5 points tolerance
         self.line.set_pickradius(15)
-        self.lastind = 0
+        self.lastind = len(self.xs) - 1
         self.text_choice = self.ax.text(
             0.95, 0.95, "selected: none", transform=self.ax.transAxes, va="top", ha="right"
         )
@@ -146,7 +147,7 @@ class PointBrowser(object):
                 ha="center",
             )
         (self.selected,) = self.ax.plot(
-            [self.xs[0]], [self.ys[0]], "o", ms=12, alpha=0.4, color="yellow", visible=True
+            [self.xs[self.lastind]], [self.ys[self.lastind]], "o", ms=12, alpha=0.4, color="yellow", visible=True
         )
         if line_datas is not None:
             for label in line_datas.keys():
@@ -219,6 +220,10 @@ class PointBrowser(object):
         self.fig.canvas.mpl_connect("key_press_event", self.onpress)
         self.fig.canvas.mpl_connect("scroll_event", self.onscroll)
         self.update_choice()
+        if save_as is not None:
+            self.fig.savefig(save_as, dpi=600, bbox_inches="tight", pad_inches=0)
+            plt.close(self.fig)
+            return
         plt.show()
 
     def get_relevant_slice(self, ms: Microstructure):

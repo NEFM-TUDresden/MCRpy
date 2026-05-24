@@ -24,7 +24,7 @@ import logging
 import pickle
 import argparse
 from typing import Any, Dict, List, Union
-
+from pathlib import Path
 import numpy as np
 
 from mcrpy.src import descriptor_factory
@@ -41,10 +41,12 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstruc
     if not isinstance(data, dict):
         raise NotImplementedError("Only pickles that contain dictionaries can be viewed.")
     if save_as is not None:
-        assert save_as.endswith(".png")
+        if isinstance(save_as, Path):
+            save_as = str(save_as)
+        assert save_as.endswith((".png", ".svg"))
     logging.info(f"Data contains keys {data.keys()}")
     if "scatter_data" in data and "raw_data" in data:
-        view_convergence_data(data, original_ms)
+        view_convergence_data(data, original_ms, save_as=save_as)
     else:
         for k, v in data.items():
             if k == "settings":
@@ -59,7 +61,9 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstruc
 
 
 @log.log_this
-def view_convergence_data(convergence_data: Dict[str, np.ndarray], original_ms: Microstructure = None):
+def view_convergence_data(
+    convergence_data: dict[str, np.ndarray], original_ms: Microstructure = None, save_as: str = None
+):
     """View a convergence_data file."""
     from mcrpy.src.point_browser import PointBrowser
 
@@ -67,7 +71,15 @@ def view_convergence_data(convergence_data: Dict[str, np.ndarray], original_ms: 
     raw_data = convergence_data["raw_data"]
     line_datas = {"Cost": convergence_data["line_data"]}
     settings = convergence_data.get("settings", None)
-    PointBrowser(scatter_data, raw_data, line_datas, original_ms=original_ms, log_axis=True, settings=settings)
+    PointBrowser(
+        scatter_data,
+        raw_data,
+        line_datas,
+        original_ms=original_ms,
+        log_axis=True,
+        settings=settings,
+        save_as=save_as,
+    )
 
 
 @log.log_this
