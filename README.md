@@ -17,25 +17,47 @@ A key feature of MCRpy is its modularity and extensibility: You can combine **an
 <p align="center"><img src="images/schema.png" height="200" alt="MCRpy schema"> </img></p>
 
 **Contents**:  
-[1) Installation](#installation)  
+[1) Changelog](#changelog)  
+[2) Installation](#installation)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[a) Simple install](#simple-install)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[b) Editable install](#editable-install)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[c) HPC install](#for-hpc)  
-[2) Dependencies](#dependencies)  
-[3) Getting started](#getting-started)  
+[3) Dependencies](#dependencies)  
+[4) Getting started](#getting-started)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[a) Graphical user interface](#mcrpy-graphical-user-interface)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[b) Command line interface](#mcrpy-command-line-interface)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[c) Python package](#mcrpy-as-a-python-package)  
-[4) Examples](#examples)  
+[5) Examples](#examples)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[a) Quick start](#quick-start)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[b) Single-phase vs multi-phase](#single-phase-vs-multi-phase)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[c) Multigrid](#multigrid)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[d) Descriptors](#descriptors)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[e) Descriptor weights](#descriptor-weights)  
-[5) Extending MCRpy by plugins](#extending-mcrpy-by-plugins)  
-[6) Related projects](#related-projects)  
-[7) Information](#information)  
-[8) License](#license)
+[6) Extending MCRpy by plugins](#extending-mcrpy-by-plugins)  
+[7) Related projects](#related-projects)  
+[8) Information](#information)  
+[9) License](#license)
+
+## Changelog
+
+### New verison 0.2.0
+- Scattering Transform:
+    - TODO
+- Support for crystallographic orientation:
+    - Orientations need to be given in the fundamental zone and are internally transformed to (0, 1)^3
+    - Descriptors are now classified as PhaseDescriptors and OrientationDesctiptors
+    - Some OrientationDescriptors are implemented, feel free to add more!
+- Custom Microstructure class:
+    - Handles slice extraction multiphase encoding and some properties
+    - Makes 3D and orientations much easier
+    - Microstructures can now be saved in npy as before, but also pickled directly
+- Increased support for Yeong-Torquato algorithm:
+    - Sampling rules and acceptance criteria can be combined in a flexible manner
+    - Exemplary combinations are given, e.g., for reconstruction from scratch of for mere smoothing
+    - Sparsity of loss function supported - call the loss only on affected slices and accept huge noise in the loss function in favor ob massive speedups
+- Unit tests:
+    - I know the test coverage is poor, but we'll get there
+    - Feel free to implement more tests
 
 ## Installation
 
@@ -72,7 +94,6 @@ You need Python >= 3.7 as well as the following packages:
 | Tensorflow      | 2.7.1   |
 | Matplotlib      | 3.3.4   |
 | Scipy           | 1.6.2   |
-| pyMKS           | 0.4.1   |
 | scikit-learn    | 0.24.1  |
 | imageio-ffmpeg  | 0.4.5   |
 | Gooey           | 1.0.8.1 |
@@ -276,7 +297,8 @@ mcrpy_view results/convergence_data.pickle
 ```
 
 ### Single-phase vs multi-phase
-The multiphase setting is activated by default.
+The multiphase setting is activated for the characterization by default, but deactivated for the reconstruction due to performance issues.
+It can be deactivated for the characterization by `--no_multiphase` and activated for the reconstructton by `--use_multiphase`. 
 For structures with more than 2 phases, like the composite example given in the `example_microstructures`, it needs to be activated, otherwise you can switch it off.
 If you use `--no_multiphase`, MCRpy will not use an indicator function for every phase, but only for phase `1`.
 This is more memory-efficient but can sometimes be ill-conditioned. 
