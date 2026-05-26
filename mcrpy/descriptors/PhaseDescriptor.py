@@ -28,7 +28,6 @@ from mcrpy.descriptors.Descriptor import Descriptor
 
 
 class PhaseDescriptor(Descriptor):
-
     @classmethod
     def make_descriptor(
         cls,

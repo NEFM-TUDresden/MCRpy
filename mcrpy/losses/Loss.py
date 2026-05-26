@@ -53,7 +53,6 @@ class Loss(ABC):
         use_orientations: bool = False,
         **kwargs,
     ) -> callable:
-
         if descriptor_list is None:
             raise ValueError("A descriptor_list must be passed that is not None.")
         if desired_descriptor_list is None:
@@ -168,10 +167,12 @@ class Loss(ABC):
                     )
                     weighted_descriptor_difference = tf.reshape(weighted_descriptor_difference, [-1])
                 except IndexError as e:
-                    raise ValueError("""Combination of multigrid settings and limit_to not 
+                    raise ValueError(
+                        """Combination of multigrid settings and limit_to not 
                             possible for given descriptor file. Try changing 
                             use_multigrid_descriptor, use_multigrid_reconstruction or 
-                            limit_to or change the characterization settings.""")
+                            limit_to or change the characterization settings."""
+                    )
                 flattened_difference_list.append(weighted_descriptor_difference * descriptor_weight)
             difference = (
                 tf.concat(flattened_difference_list, 0)

@@ -23,7 +23,6 @@ with suppress(Exception):
 
 
 class Microstructure:
-
     def __init__(
         self,
         array: np.ndarray,

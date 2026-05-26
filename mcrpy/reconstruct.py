@@ -197,24 +197,28 @@ def setup_settings(descriptor_dict, desired_shape, settings, initial_microstruct
         assert isinstance(initial_microstructure, Microstructure)
         settings.initial_microstructure = initial_microstructure
     if settings.use_multigrid_reconstruction and not settings.use_multigrid_descriptor:
-        raise ValueError("""Provided settings.use_multigrid_reconstruction is True, 
+        raise ValueError(
+            """Provided settings.use_multigrid_reconstruction is True, 
                 but settings.use_multigrid_descriptor is False. Cannot do 
                 multigrid reconstruction withour mulrigrid descriptors, 
                 although multigrid descriptors withour multigrid reconstruction is 
                 possible and can be reasonable. Please fix the settings. Also, 
                 if you want multigrid reconstruction, make sure the descriptor you 
-                start with is a multigrid descriptor.""")
+                start with is a multigrid descriptor."""
+        )
     if settings.grey_values and settings.use_multiphase:
         raise ValueError("Cannot set both grey_values and use_multiphase!")
     if settings.symmetry is not None and not isinstance(settings.symmetry, Symmetry):
         assert settings.symmetry in symmetries
         settings.symmetry = symmetries[settings.symmetry]
     if "settings" not in descriptor_dict.keys():
-        raise ValueError("""The descriptor_dict passed to mcrpy.reconstruct must
+        raise ValueError(
+            """The descriptor_dict passed to mcrpy.reconstruct must
                 contain the mcrpy.CharacterizationSettings under the key settings.
                 Characterizations carried out with previous versions might not contain
                 this information. In this case, please re-characterize the structures
-                with the current version of mcrpy or add the information manually.""")
+                with the current version of mcrpy or add the information manually."""
+        )
 
     return settings
 

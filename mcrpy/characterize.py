@@ -171,12 +171,14 @@ def characterize(
         or len({microstructure.n_phases for microstructure in microstructures}) != 1
         or len({microstructure.has_phases for microstructure in microstructures}) != 1
     ):
-        raise ValueError("""The microstructures to characterize within one call to the function
+        raise ValueError(
+            """The microstructures to characterize within one call to the function
                 mcrpy.characterize must have the same resolution, number of phases and should
                 either all contain orientations or none of them should. This is because the
                 descriptor function is created once and evaluated on all structures. If you want
                 to characterize such different microstructures, consider splitting up the 
-                characterization intp multiple calls to mcrpy.characterize""")
+                characterization intp multiple calls to mcrpy.characterize"""
+        )
 
     # augment settings
     settings.desired_shape_2d = tuple(microstructures[0].shape[:2])

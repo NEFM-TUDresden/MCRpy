@@ -123,9 +123,7 @@ class PointBrowser(object):
         (self.line,) = self.ax.plot(self.xs, self.ys, "o", picker=True)  # 5 points tolerance
         self.line.set_pickradius(15)
         self.lastind = len(self.xs) - 1
-        self.text_choice = self.ax.text(
-            0.95, 0.95, "selected: none", transform=self.ax.transAxes, va="top", ha="right"
-        )
+        self.text_choice = self.ax.text(0.95, 0.95, "selected: none", transform=self.ax.transAxes, va="top", ha="right")
         if self.last_microstructure.is_3D:
             self.text_scroll = self.ax.text(
                 0.95, 0.90, "use mouse wheel to scroll", transform=self.ax.transAxes, va="top", ha="right"

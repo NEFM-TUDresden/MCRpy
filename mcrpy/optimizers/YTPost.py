@@ -23,7 +23,6 @@ from mcrpy.src import optimizer_factory
 
 
 class YTPost(SimulatedAnnealing):
-
     def __init__(self, **kwargs):
         kwargs["mutation_rule"] = "neighbor"
         kwargs["acceptance_distribution"] = "zero_tolerance"

@@ -52,7 +52,6 @@ class Descriptor(ABC):
 
     @classmethod
     def make_multigrid_descriptor(cls, desired_shape_2d=None, desired_shape_extended=None, limit_to=8, **kwargs):
-
         H, W = desired_shape_2d
         n_phases = desired_shape_extended[-1]
         limitation_factor = min(H / limit_to, W / limit_to)
@@ -144,11 +143,13 @@ class Descriptor(ABC):
                 except Exception:
                     logging.info(f"x is {x}")
                     logging.info(f"y is {y}")
-                    raise ValueError("""Could not compare current and desired descriptor. 
+                    raise ValueError(
+                        """Could not compare current and desired descriptor. 
                         This is maybe because of type mismatch, but most likely because 
                         of shape mismatch. Either make sure the shapes match or 
                         overwrite the descriptor subclass method define_comparison_mask 
-                        to define the behavior.""")
+                        to define the behavior."""
+                    )
 
             return compare
 
@@ -236,7 +237,6 @@ class Descriptor(ABC):
 
 
 def make_image_padder(pad_x: int, pad_y: int):
-
     @tf.function
     def tile_img(img: tf.Tensor) -> tf.Tensor:
         """Tile an image. Needed for periodic boundary conditions in convolution."""

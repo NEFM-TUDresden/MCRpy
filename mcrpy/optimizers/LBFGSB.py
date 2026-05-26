@@ -36,7 +36,6 @@ class LBFGSB(SPOptimizer):
         use_orientations: bool = False,
         **kwargs,
     ):
-
         super().__init__(max_iter=max_iter, callback=callback, desired_shape_extended=desired_shape_extended)
         self.optimizer_method = "L-BFGS-B"
         bounds_shape = (np.prod(desired_shape_extended), 2)

@@ -34,7 +34,6 @@ class FFTCorrelations(PhaseDescriptor):
 
     @staticmethod
     def make_singlephase_descriptor(desired_shape_2d=(64, 64), limit_to: int = None, **kwargs) -> callable:
-
         mask = np.zeros(desired_shape_2d)
         i_center = desired_shape_2d[0] // 2
         j_center = desired_shape_2d[1] // 2

@@ -31,13 +31,9 @@ class LinealPathApproximation(PhaseDescriptor):
     is_differentiable = True
 
     @staticmethod
-    def make_singlephase_descriptor( 
-            desired_shape_2d=(64, 64), 
-            limit_to=4, 
-            l_threshold_value=0.75, 
-            threshold_steepness=10, 
-            tol=0.1,
-            **kwargs) -> callable:
+    def make_singlephase_descriptor(
+        desired_shape_2d=(64, 64), limit_to=4, l_threshold_value=0.75, threshold_steepness=10, tol=0.1, **kwargs
+    ) -> callable:
         """Make multigrid version of lineal path function descriptor.
         Limit is from center to outer, like in correlations, i.e. a limit of 4 implies a
         symmetric mask width of 7"""
@@ -45,16 +41,20 @@ class LinealPathApproximation(PhaseDescriptor):
         limit_linealpath_to = limit_to * 2 + 1
         H_conv = limit_linealpath_to
         W_conv = limit_linealpath_to
-        z_lower_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
-        z_upper_bound = tf.cast(1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64)
+        z_lower_bound = tf.cast(
+            1.0 / (1.0 + tf.math.exp(-((0.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64
+        )
+        z_upper_bound = tf.cast(
+            1.0 / (1.0 + tf.math.exp(-((1.0 - l_threshold_value) * threshold_steepness))), dtype=tf.float64
+        )
         a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
-        b = tf.cast(- a * z_lower_bound, dtype=tf.float64)
+        b = tf.cast(-a * z_lower_bound, dtype=tf.float64)
 
         tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
 
         @tf.function
         def make_dense_filters() -> tf.Tensor:
-            """Make filters for lineal path function. First diagonals and straight lines, then 
+            """Make filters for lineal path function. First diagonals and straight lines, then
             uses Bresenham line algorithm in the first octant, then swaps x and y for
             the second octant and finally mirrors y for the remainder. Surrounded by loop
             over line length. Future work: try Xiaolin Wu line algorithm."""
@@ -104,27 +104,23 @@ class LinealPathApproximation(PhaseDescriptor):
             filters_tf = tf.cast(tf.constant(filters), tf.float64)
             return filters_tf
 
-
         filters = make_dense_filters()
 
         @tf.function
         def model(mg_input):
             img_tiled = tile_img(mg_input)
-            img_convolved = tf.nn.conv2d(img_tiled, filters=filters,
-                    strides=[1, 1, 1, 1], padding='VALID')
+            img_convolved = tf.nn.conv2d(img_tiled, filters=filters, strides=[1, 1, 1, 1], padding="VALID")
             img_thresholded = tf.nn.sigmoid((img_convolved - l_threshold_value) * threshold_steepness) * a + b
             img_reduced_x = tf.math.reduce_mean(img_thresholded, axis=1, keepdims=True)
             img_reduced_xy = tf.math.reduce_mean(img_reduced_x, axis=2, keepdims=True)
             return img_reduced_xy
+
         return model
 
     @staticmethod
-    def define_comparison_mask(
-            desired_descriptor_shape: Tuple[int] = None, 
-            limit_to: int = None, 
-            **kwargs):
+    def define_comparison_mask(desired_descriptor_shape: Tuple[int] = None, limit_to: int = None, **kwargs):
         assert desired_descriptor_shape[-1] == np.prod(desired_descriptor_shape)
-        current_descriptor_n = sum((i - 1) * 2 for i in range(3, 2*(limit_to + 1), 2)) + 1
+        current_descriptor_n = sum((i - 1) * 2 for i in range(3, 2 * (limit_to + 1), 2)) + 1
         desired_descriptor_n = desired_descriptor_shape[-1]
 
         if current_descriptor_n == desired_descriptor_n:
@@ -136,16 +132,12 @@ class LinealPathApproximation(PhaseDescriptor):
         mask[..., :smaller_n] = True
         return mask, current_descriptor_n > desired_descriptor_n
 
-
     @classmethod
     def visualize_subplot(
-            cls,
-            descriptor_value: np.ndarray,
-            ax,
-            descriptor_type: str = None,
-            mg_level: int = None,
-            n_phase: int = None):
+        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+    ):
         import matplotlib.pyplot as plt
+
         x = descriptor_value.flatten()
         width = np.round(0.5 + np.sqrt(0.5 * descriptor_value.size - 0.25), decimals=0).astype(int) * 2 - 1
         center = width // 2
@@ -182,15 +174,14 @@ class LinealPathApproximation(PhaseDescriptor):
                 lp[center - i, center + delta] = x[x_entry]
                 x_entry += 1
         assert x_entry == x.size
-        ax.imshow(lp, cmap='cividis')
-        ax.set_title(f'L: l={mg_level}, p={n_phase}')
-        ax.set_xlabel(r'$r_x$ in Px')
-        ax.set_ylabel(r'$r_y$ in Px')
+        ax.imshow(lp, cmap="cividis")
+        ax.set_title(f"L: l={mg_level}, p={n_phase}")
+        ax.set_xlabel(r"$r_x$ in Px")
+        ax.set_ylabel(r"$r_y$ in Px")
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
         ax.set_xticklabels([-center, 0, center])
         ax.set_yticklabels(reversed([-center, 0, center]))
-        
 
 
 def register() -> None:

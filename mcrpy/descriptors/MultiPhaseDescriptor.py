@@ -28,7 +28,6 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class MultiPhaseDescriptor(PhaseDescriptor):
-
     @classmethod
     def make_descriptor(
         cls,
