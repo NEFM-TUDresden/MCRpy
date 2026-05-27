@@ -178,7 +178,7 @@ class CrossCorrelations(MultiPhaseDescriptor):
         for i in range(1, larger_limit_to):
             for j in range(1, larger_limit_to):
                 boolean_list.append(i < smaller_limit_to and j < smaller_limit_to)
-        mask = np.zeros((larger_n_elements, larger_n_elements), dtype=np.bool8)
+        mask = np.zeros((larger_n_elements, larger_n_elements), dtype=bool)
         for i, bi in enumerate(boolean_list):
             for j, bj in enumerate(boolean_list):
                 mask[i, j] = bi and bj

@@ -162,7 +162,7 @@ class TwoPointCorrelations(PhaseDescriptor):
         for i in range(1, larger_limit_to):
             for j in range(1, larger_limit_to):
                 boolean_list.append(i < smaller_limit_to and j < smaller_limit_to)
-        mask = np.array(boolean_list, dtype=np.bool8)
+        mask = np.array(boolean_list, dtype=bool)
         return mask, limit_to > desired_limit_to
 
     @classmethod

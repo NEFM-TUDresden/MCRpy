@@ -132,7 +132,7 @@ class LinealPathApproximation(PhaseDescriptor):
 
         larger_n = max(current_descriptor_n, desired_descriptor_n)
         smaller_n = min(current_descriptor_n, desired_descriptor_n)
-        mask = np.zeros(tuple(list(desired_descriptor_shape[:-1]) + [larger_n]), dtype=np.bool8)
+        mask = np.zeros(tuple(list(desired_descriptor_shape[:-1]) + [larger_n]), dtype=bool)
         mask[..., :smaller_n] = True
         return mask, current_descriptor_n > desired_descriptor_n
 

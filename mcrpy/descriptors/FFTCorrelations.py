@@ -72,7 +72,7 @@ class FFTCorrelations(PhaseDescriptor):
         smaller_limit_to = min(limit_to, desired_limit_to)
         limit_delta = larger_limit_to - smaller_limit_to
         larger_n_elements = larger_limit_to * 2 - 1
-        mask = np.zeros((larger_n_elements, larger_n_elements), dtype=np.bool8)
+        mask = np.zeros((larger_n_elements, larger_n_elements), dtype=bool)
         mask[limit_delta:-limit_delta, limit_delta:-limit_delta] = True
         return mask, limit_to > desired_limit_to
 
