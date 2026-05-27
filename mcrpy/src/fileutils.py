@@ -26,10 +26,23 @@ import pickle
 import shutil
 import time
 import subprocess
+import sys
 from typing import List, Dict, Union
 
 import numpy as np
 from mcrpy.src.Microstructure import Microstructure
+
+
+class CompatibilityUnpickler(pickle.Unpickler):
+    """Custom unpickler to handle numpy module reorganization between versions."""
+    
+    def find_class(self, module, name):
+        # Handle numpy._core module reorganization
+        if module == "numpy._core":
+            module = "numpy.core"
+        elif module.startswith("numpy._core."):
+            module = "numpy.core." + module[12:]
+        return super().find_class(module, name)
 
 
 def expand_folder_name(folder_name: str, intermediate_folders: List[str] = None) -> str:
@@ -80,7 +93,7 @@ def load(filename: str, use_multiphase: bool = False) -> Union[np.ndarray, Dict]
         return Microstructure.from_npy(filename, use_multiphase=use_multiphase)
     elif filename.endswith(".pickle"):
         with open(filename, "rb") as f:
-            data = pickle.load(f)
+            data = CompatibilityUnpickler(f).load()
         return data
     else:
         raise ValueError(
