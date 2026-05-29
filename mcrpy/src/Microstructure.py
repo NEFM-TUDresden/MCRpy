@@ -333,7 +333,7 @@ class Microstructure:
         x_e_reshaped = tf.reshape(x_s2b[slice_index], batch_element_shape)
         x_e_reshaped.set_shape(batch_element_shape)
         if self.has_orientations:
-            x_e_reshaped = self.ori_repr(x_e_reshaped)  # TODO hier drehen je nach x y z mgl
+            x_e_reshaped = self.ori_repr(x_e_reshaped)
         return x_e_reshaped
 
     def get_slice_iterator(self, dimension: int):

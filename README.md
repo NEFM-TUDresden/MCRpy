@@ -309,6 +309,17 @@ Generally, correlations as descriptors perform best for convex-shaped inclusions
 With other settings, the convergence might fail.
 The Gram matrices are a more robust descriptor to include here.
 
+### Orientation
+Unlike typical Voronoi-based reconstruction frameworks, in MCRpy each pixel or voxel can hold a distinct crystallographic orientation. There is no explicit representation of grains. Instead, they should emerge in the process. Please note that although the implementation is shared, it is in a basic stage and further research is required to increase the efficiency.
+
+Different orientation representations (Euler, Rodrigues, Quaternion, ...) and a system for supporting lattice symmetries are available. Cubic symmetry is implemented as an example. It is recommended to use unnormalized quaternions as a representation and to use orientation descriptors based on symmetrized hyperspherical harmonics.
+
+```bash
+mcrpy_match --microstructure_filename example_microstructures/ebsd_128x128_Cubic_UnnormalizedQuaternion.npy \
+                --descriptor_types OrientationVariation OrientationVariogram --limit_to 4 \
+                --ori_repr UnnormalizedQuaternion --symmetry cubic
+```
+
 ### Multigrid
 There are two settings, `use_multigrid_descriptors` and `use_multigrid_reconstruction`:
 - `use_multigrid_descriptors` refers to a reduced descriptor accuracy for long-range information, similar to a feature pyramid, and is described in [this paper](https://www.sciencedirect.com/science/article/abs/pii/S0927025621001804). It applies to characterization and reconstruction.

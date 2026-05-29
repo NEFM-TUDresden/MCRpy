@@ -107,9 +107,8 @@ class Symmetry:
             ori_via = Quaternion(tf.reshape(ori_via, tf.shape(ori_via_cp.x)))
         return ori_via.astype(og_type)
 
-    def compute_grain_boundaries(self, ori: Orientation = None) -> tf.Tensor:
+    def compute_grain_boundaries(self, ori: Orientation = None) -> tf.Tensor:  # for 2D field
         gb_list = []
-        print("TODO ori should be 2D")
         for translation_x, translation_y in [(1, 0), (0, 1), (1, 1)]:
             q_translated = type(ori)(
                 tf.reshape(translate_2D(ori.x, translation_x, translation_y)[0], tf.shape(ori.x))
