@@ -52,21 +52,6 @@ def make_2d_gradients(loss_function: callable) -> callable:
     return gradient_computation
 
 
-# def make_2d_gradients(loss_function: callable) -> callable:
-#     from jax import value_and_grad
-#     from jax.experimental.jax2tf import call_tf, convert
-#     def loss_function_typecast(input):
-#         return tf.cast(loss_function(tf.cast(input, tf.float64)), tf.float32)
-#     lf_jax = call_tf(loss_function_typecast)
-#     lg_jax = value_and_grad(lf_jax)
-#     lg_tf = convert(lg_jax)
-#     def inner(ms: Microstructure):
-#         ms_xx = tf.cast(ms.xx, tf.float32)
-#         val, grad = lg_tf(ms_xx)
-#         return tf.cast(val, tf.float64), tf.cast(grad, tf.float64)
-#     return inner
-
-
 def make_3d_gradients(
     loss_function: Union[callable, List[callable], Tuple[callable]], shape_3d: Tuple[int]
 ) -> callable:
@@ -176,6 +161,13 @@ def make_3d_nograds(loss_function: Union[callable, List[callable], Tuple[callabl
     return loss_accumulation
 
 
+def make_call_directly(loss_function):
+    def call_directly(ms: Microstructure):
+        return loss_function(ms.x)
+
+    return call_directly
+
+
 def make_call_loss(
     loss_function: Union[callable, List[callable], Tuple[callable]],
     ms: Microstructure,
@@ -183,12 +175,17 @@ def make_call_loss(
     sparse: bool = False,
     greedy: bool = False,
     batch_size: int = 1,
+    full_3d: bool = False,
 ) -> callable:  # sourcery skip: remove-redundant-if
     """Make and return a function that computes the loss_function and
     possibly the gradient given a Microstructure.
     """
     ms_is_3d = ms.is_3D
     ms_is_2d = not ms_is_3d
+    if full_3d:
+        assert ms_is_3d
+        assert not is_gradient_based
+        return make_call_directly(loss_function)
     if ms_is_2d and not is_gradient_based:
         return make_2d_nograds(loss_function)
     if ms_is_2d and is_gradient_based:

@@ -26,9 +26,14 @@ import numpy as np
 import tensorflow as tf
 
 from mcrpy.src.IndicatorFunction import IndicatorFunction
+from mcrpy.orientation import Orientation, Quaternion
+from mcrpy.orientation.UnnormalizedQuaternion import UnnormalizedQuaternion
+from mcrpy.src.translation import translate_2D
 
 
 class Descriptor(ABC):
+    """Abstract base class for all descriptor plugins """
+
     is_differentiable = True
     default_weight = 1.0
 
@@ -52,6 +57,7 @@ class Descriptor(ABC):
 
     @classmethod
     def make_multigrid_descriptor(cls, desired_shape_2d=None, desired_shape_extended=None, limit_to=8, **kwargs):
+
         H, W = desired_shape_2d
         n_phases = desired_shape_extended[-1]
         limitation_factor = min(H / limit_to, W / limit_to)
@@ -83,10 +89,20 @@ class Descriptor(ABC):
                     mg_pool = IndicatorFunction(
                         tf.nn.avg_pool2d(mg_input.x, [pool_size, pool_size], [pool_size, pool_size], "VALID")
                     )
+                elif isinstance(mg_input, Orientation):
+                    logging.info("downsample trivially using unnormalized quaternions")
+                    mg_pool = UnnormalizedQuaternion(
+                        tf.nn.avg_pool2d(
+                            mg_input.astype(UnnormalizedQuaternion).x,
+                            [pool_size, pool_size],
+                            [pool_size, pool_size],
+                            "VALID",
+                        )
+                    ).astype(type(mg_input))
                 elif isinstance(mg_input, tf.Tensor):
                     mg_pool = tf.nn.avg_pool2d(mg_input, [pool_size, pool_size], [pool_size, pool_size], "VALID")
                 else:
-                    raise ValueError("mg_input should be IndicatorFunction")
+                    raise ValueError("mg_input should be IndicatorFunction or Orientation")
                 mg_desc = singlephase_descriptor(mg_pool)
                 mg_exp = tf.expand_dims(mg_desc, axis=0)
                 mg_layers.append(mg_exp)
@@ -167,21 +183,26 @@ class Descriptor(ABC):
         return compare_reduce_desired
 
     @classmethod
-    def visualize(cls, descriptor_value: np.ndarray, save_as: str = None, descriptor_type: str = None):
+    def visualize(
+        cls, descriptor_value: np.ndarray, axis: bool = True, save_as: str = None, descriptor_type: str = None
+    ):
         if isinstance(descriptor_value, (tuple, list)):
             if save_as is not None:
                 assert save_as.endswith(".png")
             for dim_number, dim_value in enumerate(descriptor_value):
                 cls.visualize_slice(
                     dim_value,
+                    axis=axis,
                     save_as=f"{save_as[:-4]}_dimension_{dim_number+1}.png" if save_as is not None else None,
                     descriptor_type=descriptor_type,
                 )
         else:
-            cls.visualize_slice(descriptor_value, save_as=save_as, descriptor_type=descriptor_type)
+            cls.visualize_slice(descriptor_value, axis=axis, save_as=save_as, descriptor_type=descriptor_type)
 
     @classmethod
-    def visualize_slice(cls, descriptor_value: np.ndarray, save_as: str = None, descriptor_type: str = None):
+    def visualize_slice(
+        cls, descriptor_value: np.ndarray, save_as: str = None, axis: bool = True, descriptor_type: str = None
+    ):
         import matplotlib
         import matplotlib.pyplot as plt
 
@@ -197,14 +218,24 @@ class Descriptor(ABC):
 
         n_phases = descriptor_value.shape[0]
         mg_levels = descriptor_value.shape[1]
-        fig, axs = plt.subplots(n_phases, mg_levels, squeeze=False)
+        if axis:
+            fig, axs = plt.subplots(n_phases, mg_levels, squeeze=False)
+            # fig.set_size_inches(2.0, 2.0, forward = False)
+        else:
+            assert mg_levels == n_phases == 1, "no axis only possible if one phase and one mg level"
+            fig = plt.figure()
+            fig.set_size_inches(1, 1, forward=False)
+            ax = plt.Axes(fig, [0.0, 0.0, 1.0, 1.0])
+            ax.set_axis_off()
+            fig.add_axes(ax)
         # fig, axs = plt.subplots(n_phases, mg_levels, sharex=True, sharey=True, squeeze=False)
         for n_phase in range(n_phases):
             for mg_level in range(mg_levels):
                 cls.visualize_subplot(
                     descriptor_value[n_phase, mg_level],
-                    axs[n_phase, mg_level],
+                    axs[n_phase, mg_level] if axis else ax,
                     descriptor_type=descriptor_type,
+                    axis=axis,
                     mg_level=mg_level,
                     n_phase=n_phase if n_phases > 1 else 1,
                 )
@@ -218,7 +249,13 @@ class Descriptor(ABC):
 
     @classmethod
     def visualize_subplot(
-        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+        cls,
+        descriptor_value: np.ndarray,
+        ax,
+        descriptor_type: str = None,
+        axis: bool = True,
+        mg_level: int = None,
+        n_phase: int = None,
     ):
         import matplotlib.pyplot as plt
 
@@ -233,16 +270,35 @@ class Descriptor(ABC):
                     break
             x = x.reshape((height, width))
             ax.imshow(x, cmap="cividis")
-        ax.set_title(f"{descriptor_type}: l={mg_level}, p={n_phase}")
+        if axis:
+            ax.set_title(f"{descriptor_type}: l={mg_level}, p={n_phase}")
+        else:
+            ax.set_axis_off()
 
 
 def make_image_padder(pad_x: int, pad_y: int):
+
     @tf.function
+    @tf.recompute_grad
     def tile_img(img: tf.Tensor) -> tf.Tensor:
         """Tile an image. Needed for periodic boundary conditions in convolution."""
         img_tiled_x = tf.concat([img, img[:, :pad_x, :, :]], axis=1)
         img_tiled_xy = tf.concat([img_tiled_x, img_tiled_x[:, :, :pad_y, :]], axis=2)
         return img_tiled_xy
+
+    return tile_img
+
+
+def make_image_padder_3d(pad_x: int, pad_y: int, pad_z: int):
+
+    @tf.function
+    @tf.recompute_grad
+    def tile_img(img: tf.Tensor) -> tf.Tensor:
+        """Tile an image. Needed for periodic boundary conditions in convolution."""
+        img_tiled_x = tf.concat([img, img[:, :pad_x, :, :, :]], axis=1)
+        img_tiled_xy = tf.concat([img_tiled_x, img_tiled_x[:, :, :pad_y, :, :]], axis=2)
+        img_tiled_xyz = tf.concat([img_tiled_xy, img_tiled_xy[:, :, :, :pad_z, :]], axis=3)
+        return img_tiled_xyz
 
     return tile_img
 

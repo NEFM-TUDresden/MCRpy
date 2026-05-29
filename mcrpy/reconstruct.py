@@ -22,6 +22,9 @@ import argparse
 import contextlib
 import pickle
 import os
+import copy
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import logging
 from typing import Any, Dict, Tuple, Union
 
@@ -113,7 +116,9 @@ def prepare_reconstruction(args):
     initial_microstructure = (
         None
         if args.initial_microstructure_file is None
-        else Microstructure.from_npy(args.initial_microstructure_file, use_multiphase=args.use_multiphase)
+        else Microstructure.from_npy(
+            args.initial_microstructure_file, use_multiphase=args.use_multiphase, ori_repr=args.ori_repr
+        )
     )
     del args.initial_microstructure_file
     settings = ReconstructionSettings(**vars(args))
@@ -143,7 +148,7 @@ def reconstruct(
     initial_microstructure: Microstructure = None,
 ):
     settings, desired_descriptors = setup_reconstruction(
-        descriptor_dict, desired_shape, settings, initial_microstructure
+        copy.deepcopy(descriptor_dict), desired_shape, settings, initial_microstructure
     )
 
     # run reconstruction
@@ -171,6 +176,8 @@ def setup_reconstruction(descriptor_dict, desired_shape, settings, initial_micro
     # augment settings
     if "VolumeFractions" in descriptor_dict:
         settings.volume_fractions = descriptor_dict["VolumeFractions"]
+    if "VolumeFractions3D" in descriptor_dict:
+        settings.volume_fractions = descriptor_dict["VolumeFractions3D"]
     settings.n_phases = characterization_settings.n_phases
 
     # copy settings
@@ -275,6 +282,8 @@ def cli_main():
     parser.add_argument("--final_temperature", type=float, help="Final temperature for annealing", default=None)
     parser.add_argument("--cooldown_factor", type=float, help="Cooldown factor for annealing", default=0.9)
     parser.add_argument("--mutation_rule", type=str, help="Mutation rule for YT", default="relaxed_neighbor")
+    parser.add_argument("--ori_repr", type=str, help="Orientation representation.", default="Rodrigues")
+    parser.add_argument("--n_shsh_terms", type=int, help="Number of expansion terms in SHSH.", default=9)
     parser.add_argument(
         "--acceptance_distribution", type=str, help="Acceptance distribution for YT", default="zero_tolerance"
     )
@@ -303,6 +312,8 @@ def cli_main():
     parser.set_defaults(periodic=True)
     parser.add_argument("--grey_values", dest="grey_values", action="store_true")
     parser.set_defaults(grey_values=False)
+    parser.add_argument("--full_3d", dest="full_3d", action="store_true")
+    parser.set_defaults(full_3d=False)
     parser.add_argument("--use_multiphase", dest="use_multiphase", action="store_true")
     parser.set_defaults(use_multiphase=False)
     parser.add_argument("--no_multigrid_descriptor", dest="use_multigrid_descriptor", action="store_false")

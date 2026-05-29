@@ -29,6 +29,8 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class LinealPath(PhaseDescriptor):
+    """Lineal path function inefficiently implemented by taking the limit of its differentiable approximation"""
+
     is_differentiable = False
 
     @staticmethod
@@ -106,7 +108,11 @@ class LinealPath(PhaseDescriptor):
                             filters[round(current_y - tol), i_max - current_x, 0, filter_index + 3] = 0.5
                             filters[round(current_y + tol), i_max - current_x, 0, filter_index + 3] = 0.5
                     filter_index += 4
-                filters[:, :, :, start_filter_index:filter_index] /= sublim
+                for current_filter_index in range(start_filter_index, filter_index):
+                    filters[:, :, :, current_filter_index] = filters[:, :, :, current_filter_index] / np.sum(
+                        filters[:, :, :, current_filter_index]
+                    )
+                # filters[:, :, :, start_filter_index:filter_index] /= sublim
             filters_tf = tf.cast(tf.constant(filters), tf.float64)
             return filters_tf
 
@@ -140,7 +146,13 @@ class LinealPath(PhaseDescriptor):
 
     @classmethod
     def visualize_subplot(
-        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+        cls,
+        descriptor_value: np.ndarray,
+        ax,
+        axis: bool = True,
+        descriptor_type: str = None,
+        mg_level: int = None,
+        n_phase: int = None,
     ):
         import matplotlib.pyplot as plt
 

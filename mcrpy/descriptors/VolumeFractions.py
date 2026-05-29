@@ -29,6 +29,7 @@ class VolumeFractions(PhaseDescriptor):
 
     @staticmethod
     def make_singlephase_descriptor(**kwargs) -> callable:
+
         @tf.function
         def compute_descriptor(microstructure: tf.Tensor) -> tf.Tensor:
             return tf.math.reduce_mean(microstructure)

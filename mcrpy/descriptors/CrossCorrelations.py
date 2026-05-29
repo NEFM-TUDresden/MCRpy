@@ -29,6 +29,7 @@ from mcrpy.descriptors.MultiPhaseDescriptor import MultiPhaseDescriptor
 
 
 class CrossCorrelations(MultiPhaseDescriptor):
+    """Three-point cross-correlations calculated by convolve-threshold-reduce pipeline, see Seibert et al, COMMAT, 2021"""
     is_differentiable = True
     default_weight = 10.0
 

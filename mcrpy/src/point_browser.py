@@ -31,6 +31,9 @@ from typing import Tuple, List
 from mcrpy.src import fileutils
 from mcrpy.src.Microstructure import Microstructure
 from mcrpy.src.Settings import ReconstructionSettings
+from mcrpy.orientation import Rodrigues
+from mcrpy.src.SHSH import z_symm
+from mcrpy.orientation.Classes import classes as ori_repr_classes
 
 # mplstyle.use('seaborn-notebook')
 
@@ -67,6 +70,7 @@ class PointBrowser(object):
         ylabel: str = "Cost",
         settings: ReconstructionSettings = None,
         log_axis: bool = True,
+        grey_values: bool = False,
         save_as: str = None,
     ):
         self.intermediate_microstructures = [
@@ -88,6 +92,8 @@ class PointBrowser(object):
         self.current_slice_number = self.slices // 2
         self.raw = False
         self.n_ori_view = 0
+        self.grey_values = grey_values
+        self.ori_repr = ori_repr_classes[settings.ori_repr] if settings is not None else None
 
         mg_level_starts, mg_level_indices = find_mg_layers(scatter_data[:, 0])
         annotation_indices = []
@@ -108,9 +114,87 @@ class PointBrowser(object):
         layout_start = 0 if original_ms is None else 1
 
         self.ori_views = [
-            ("rho_1", lambda x: x[..., 0]),
-            ("rho_2", lambda x: x[..., 1]),
-            ("rho_3", lambda x: x[..., 2]),
+            ("rho_1", lambda x: self.ori_repr(x.astype(np.float64)).astype(Rodrigues).x.numpy()[..., 0]),  # x[..., 0]),
+            ("rho_2", lambda x: self.ori_repr(x.astype(np.float64)).astype(Rodrigues).x.numpy()[..., 1]),  # x[..., 1]),
+            ("rho_3", lambda x: self.ori_repr(x.astype(np.float64)).astype(Rodrigues).x.numpy()[..., 2]),  # x[..., 2]),
+            (
+                "z_8_1",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 1)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_2",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 2)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_3",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 3)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_4",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 4)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_5",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 5)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_6",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 6)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_7",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 7)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_8",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 8)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "z_8_9",
+                lambda x: z_symm(self.ori_repr(x.astype(np.float64)), self.last_microstructure.symmetry, 8, 9)[
+                    0, ..., 0
+                ],
+            ),
+            (
+                "[0, 0, 1]",
+                lambda x: self.last_microstructure.symmetry.to_ipf(
+                    self.ori_repr(x.astype(np.float64)), tf.constant([0, 0, 1], dtype=tf.float64)
+                ),
+            ),
+            (
+                "[0, 1, 0]",
+                lambda x: self.last_microstructure.symmetry.to_ipf(
+                    self.ori_repr(x.astype(np.float64)), tf.constant([0, 1, 0], dtype=tf.float64)
+                ),
+            ),
+            (
+                "[1, 0, 0]",
+                lambda x: self.last_microstructure.symmetry.to_ipf(
+                    self.ori_repr(x.astype(np.float64)), tf.constant([1, 0, 0], dtype=tf.float64)
+                ),
+            ),
+            (
+                "gb",
+                lambda x: self.last_microstructure.symmetry.compute_grain_boundaries(
+                    self.ori_repr(x.astype(np.float64))
+                ),
+            ),
         ]
         self.n_ori_views = len(self.ori_views)
 
@@ -167,7 +251,18 @@ class PointBrowser(object):
                 raise NotImplementedError("Displaying 3D original_ms not implemented")
             self.og_axis = self.fig.add_subplot(gs[0, 0])
             if original_ms.has_phases:
-                self.og_img = self.og_axis.imshow(original_ms.decode_phases(), cmap="cividis")
+                self.og_img = self.og_axis.imshow(
+                    (
+                        original_ms.decode_phases()
+                        if not grey_values
+                        else original_ms.x.numpy()[
+                            0,
+                            :,
+                            :,
+                        ]
+                    ),
+                    cmap="cividis",
+                )
             else:
                 self.og_img = self.og_axis.imshow(
                     self.ori_views[self.n_ori_view][1](self.original_ms.get_orientation_field().numpy())
@@ -319,11 +414,14 @@ class PointBrowser(object):
 
     def update_scroll(self):
         for im in self.ims:
-            im.set_data(self.get_relevant_slice(self.intermediate_microstructures[self.lastind]))
+            data_update = self.get_relevant_slice(self.intermediate_microstructures[self.lastind])
+            im.set_data(data_update)
             if self.last_microstructure.has_orientations and (
                 "z_" in self.ori_views[self.n_ori_view][0] or "rho" in self.ori_views[self.n_ori_view][0]
             ):
                 im.set(norm=matplotlib.colors.Normalize(-1, 1), cmap="seismic")
+            elif self.grey_values and self.show_cycle == self.last_microstructure.n_phases:
+                im.set(norm=matplotlib.colors.Normalize(np.min(data_update), np.max(data_update)))
         if self.last_microstructure.has_orientations and self.original_ms is not None:
             self.og_img.set_data(self.ori_views[self.n_ori_view][1](self.original_ms.get_orientation_field().numpy()))
             if self.last_microstructure.has_orientations and (

@@ -11,16 +11,18 @@ import tensorflow as tf
 
 # tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+from mcrpy.orientation import Orientation, Rodrigues, Euler
 from mcrpy.src.Symmetry import Symmetry, Cubic
 from mcrpy.src.Microstructure import Microstructure
 
 
 class MutableMicrostructure(Microstructure):
+
     def __init__(
         self,
         array: np.ndarray,
         use_multiphase=False,
-        ori_repr: type = None,
+        ori_repr: type = Rodrigues,
         symmetry: Symmetry = Cubic,
         skip_encoding: bool = False,
         trainable: bool = True,
@@ -92,6 +94,29 @@ class MutableMicrostructure(Microstructure):
         else:
             return [np.unravel_index(cli, field.shape[:-1]) for cli in chosen_linear_index]
 
+    def sample_island_location(
+        self,
+        field: np.ndarray,
+        neighbor_offset: float = 0.0,
+        multiple: int = None,
+        neighbor_in_phase: Union[int, None] = None,
+    ):
+        conv_result = convolve(field, self.conv_weights, mode="wrap").flatten()
+        if neighbor_in_phase is not None:
+            conv_result = (
+                conv_result
+                * convolve(field[0, ..., neighbor_in_phase], self.neighbor_conv_weights, mode="wrap").flatten()
+            )
+        clipped_result = np.clip(conv_result - neighbor_offset, 0, 10)
+        unscaled_probs = clipped_result**2
+        assert np.sum(unscaled_probs > 0) > 0, "no pixel remaining"
+        probs = unscaled_probs / np.sum(unscaled_probs)
+        chosen_linear_index = np.random.choice(self.linear_indices, multiple, replace=False, p=probs)
+        if multiple in {0, 1, None}:
+            return np.unravel_index(chosen_linear_index, (1,) + field.shape)
+        else:
+            return [np.unravel_index(cli, field.shape) for cli in chosen_linear_index]
+
     def mutate(self, n_attempts: int = 1000, rule: str = "relaxed_neighbor"):
         self.pre_mutation = tf.identity(self.x)
         with self.use_multiphase_encoding() as x:
@@ -129,6 +154,29 @@ class MutableMicrostructure(Microstructure):
                 index_2 = self.sample_phase_location(
                     mutant, phases_2, neighbor_offset=neighbor_offset, neighbor_in_phase=phases_1
                 )
+            elif rule == "remove_islands":  # only one phase
+                from mcrpy.src.island_detection import detect_islands_with_periodicity
+
+                assert mutant.shape[-1] == 2
+                island_array = detect_islands_with_periodicity(mutant[0, ..., -1])
+                if not np.any(island_array):
+                    raise MutationError()
+                n_island_voxels = np.sum(island_array)
+                probs = island_array.flatten() / n_island_voxels
+                chosen_linear_index = np.random.choice(self.linear_indices, 1, replace=False, p=probs)[0]
+                index_2 = np.unravel_index(chosen_linear_index, mutant.shape[:-1])
+                index_1 = self.sample_phase_location(mutant, 0, neighbor_offset=0)
+                phases_1 = 0
+                phases_2 = 1
+            elif rule == "reduce_any_islands":  # all phases
+                from mcrpy.src.island_detection import detect_islands_with_periodicity
+
+                island_phase, other_phase = random.sample(list(range(min(2, self.n_phases))), 2)
+                island_array = detect_islands_with_periodicity(mutant[0, ..., island_phase])
+                index_2 = self.sample_island_location(island_array, neighbor_offset=0.0)
+                index_1 = self.sample_phase_location(mutant, other_phase, neighbor_offset=0.0)
+                phases_1 = other_phase
+                phases_2 = island_phase
             else:
                 raise NotImplementedError(f"Mutation rule {rule} is not implemented")
             mutant[index_1][phases_1] = 0
@@ -220,3 +268,8 @@ class MutableMicrostructure(Microstructure):
                 previous_loss = new_loss
             x.assign(field)
         logging.info("done adjusting volume fractions")
+
+
+class MutationError(Exception):
+    def __init__(self) -> None:
+        super().__init__()

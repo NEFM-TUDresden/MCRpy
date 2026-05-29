@@ -1,20 +1,21 @@
 """
-   Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
-   Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
-   Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,6 +29,7 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class Correlations(PhaseDescriptor):
+    """Three-point auto-correlations calculated by convolve-threshold-reduce pipeline, see Seibert et al, COMMAT, 2021"""
     is_differentiable = True
 
     @staticmethod
@@ -58,7 +60,6 @@ class Correlations(PhaseDescriptor):
         a = tf.cast(1.0 / (z_upper_bound - z_lower_bound), dtype=tf.float64)
         b = tf.cast(-a * z_lower_bound, dtype=tf.float64)
 
-        tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
         tile_img = make_image_padder(min(W_conv, W) - 1, min(H_conv, H) - 1)
 
         @tf.function
@@ -194,7 +195,13 @@ class Correlations(PhaseDescriptor):
 
     @classmethod
     def visualize_subplot(
-        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+        cls,
+        descriptor_value: np.ndarray,
+        ax,
+        axis: bool = True,
+        descriptor_type: str = None,
+        mg_level: int = None,
+        n_phase: int = None,
     ):
         x_max, y_max = descriptor_value.shape
         assert x_max == y_max

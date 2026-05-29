@@ -51,6 +51,7 @@ class Loss(ABC):
         use_multiphase: bool = False,
         descriptor_is_multiphase: List[bool] = None,
         use_orientations: bool = False,
+        ori_repr: str = None,
         **kwargs,
     ) -> callable:
         if descriptor_list is None:
@@ -205,6 +206,13 @@ class Loss(ABC):
             return penalty_oor
 
         @tf.function
+        def compute_oor_penalty_quat(x):
+            magnitudes = tf.reduce_sum(tf.math.square(x.x), axis=-1)
+            deviations = magnitudes - 1.0
+            penalty_oor = tf.math.reduce_mean(tf.math.square(deviations))
+            return penalty_oor
+
+        @tf.function
         def compute_loss(x):
             energy = compute_energy(x)
             standard_loss = energy
@@ -212,11 +220,15 @@ class Loss(ABC):
                 lambda_oor = energy * oor_multiplier
                 penalty_oor = compute_oor_penalty(x)
                 standard_loss = standard_loss + lambda_oor * penalty_oor
+            if use_orientations and ori_repr == "UnnormalizedQuaternions":
+                penalty_uq_oor = compute_oor_penalty_quat(x)
+                lambda_oor = energy * oor_multiplier
+                standard_loss = standard_loss + lambda_oor * penalty_uq_oor
             if use_multiphase and not use_orientations:
                 lambda_phase_sum = energy * phase_sum_multiplier
                 penalty_phase_sum = phase_sum(x)
                 standard_loss = standard_loss + lambda_phase_sum * penalty_phase_sum
-            if tvd_term is not None:
+            if tvd is not None and tvd > 0:
                 lambda_var = energy * tvd
                 penalty_var = tvd_term(x)
                 standard_loss = standard_loss + lambda_var * penalty_var

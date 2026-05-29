@@ -31,6 +31,8 @@ from mcrpy.descriptors.MultiPhaseDescriptor import MultiPhaseDescriptor
 
 
 class MultiPhaseGramMatrices(MultiPhaseDescriptor):
+    """Gram matrices for multiple phases"""
+
     is_differentiable = True
 
     @staticmethod
@@ -70,7 +72,7 @@ class MultiPhaseGramMatrices(MultiPhaseDescriptor):
         and our 3D work
             Seibert et al., Descriptor-based reconstruction of three-
             dimensional microstructures through gradient-based optimization,
-            (submitted), 2021
+            Acta Materialia, 2021
         The difference of this code with respect to said sources is that here,
         periodic convolutions are used.  Also, phase to RGB encoding is
         regarded as a part of the descriptor."""

@@ -1,0 +1,69 @@
+"""
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+from __future__ import annotations
+
+import logging
+import tensorflow as tf
+import numpy as np
+
+from mcrpy.src import descriptor_factory
+from mcrpy.descriptors.OrientationDescriptor import OrientationDescriptor
+
+
+class OrientationFFTCorrelations(OrientationDescriptor):
+    """2-point auto-correlation of each dimension of orientation field calculated by FFT"""
+
+    is_differentiable = True
+    default_weight = 10.0
+    required_orientation_representation = None  # none means SHSH
+    orientation_representation_dimension: int = 9
+
+    @classmethod
+    def make_orientation_descriptor(
+        cls, desired_shape_2d=(64, 64), limit_to: int = 8, n_shsh_terms: int = None, **kwargs
+    ) -> callable:
+
+        include_auto = False
+        mask = np.zeros(desired_shape_2d)
+        i_center = desired_shape_2d[0] // 2
+        j_center = desired_shape_2d[1] // 2
+        n_components = tf.constant(desired_shape_2d[0] * desired_shape_2d[1], dtype=tf.complex128)
+        mask[i_center - limit_to + 1 : i_center + limit_to, j_center - limit_to + 1 : j_center + limit_to] = 1
+        mask = mask.astype(bool)
+        mask = tf.constant(mask, dtype=tf.bool)
+        broadcast_mask = tf.broadcast_to(tf.expand_dims(mask, 0), (n_shsh_terms, *tf.shape(mask)))
+        descriptor_shape = (limit_to * 2 - 1,) * 2
+        batched_descriptor_shape = (n_shsh_terms, limit_to * 2 - 1, limit_to * 2 - 1)
+
+        @tf.function
+        def model(shsh_input: tf.Tensor) -> tf.Tensor:
+            shsh_input_batched = tf.stack(tf.unstack(shsh_input[0], axis=-1), axis=0)
+            shsh_fourier_batched = tf.signal.rfft2d(shsh_input_batched)
+            fourier_coefficients = shsh_fourier_batched * tf.math.conj(shsh_fourier_batched) / n_components
+            real_coefficients = tf.signal.irfft2d(fourier_coefficients)
+            real_coefficients = tf.signal.fftshift(real_coefficients)
+            selected_components = tf.boolean_mask(tf.cast(real_coefficients, tf.float64), broadcast_mask)
+            selected_components = tf.reshape(selected_components, batched_descriptor_shape)
+            return selected_components
+
+        return model
+
+
+def register() -> None:
+    descriptor_factory.register("OrientationFFTCorrelations", OrientationFFTCorrelations)

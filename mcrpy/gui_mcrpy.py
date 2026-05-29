@@ -1,20 +1,21 @@
 """
-   Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
-   Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
-   Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
+Copyright 10/2020 - 04/2021 Paul Seibert for Diploma Thesis at TU Dresden
+Copyright 05/2021 - 12/2021 TU Dresden (Paul Seibert as Scientific Assistant)
+Copyright 2022 TU Dresden (Paul Seibert as Scientific Employee)
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
 from __future__ import annotations
 
 import os
@@ -655,17 +656,17 @@ def call_main():
         "--cmap", type=str, help="Colormap for plotting microstructures", default="cividis", gooey_options=GOOEY_OPTIONS
     )
     group_vie_opt.add_argument(
-        "--symmetry",
-        type=str,
-        help="Symmetry of the microstructure if orientations are considered. Default is None.",
-        default=None,
-        gooey_options=GOOEY_OPTIONS,
-    )
-    group_vie_opt.add_argument(
         "--logfile_name",
         type=str,
         help="Name of logfile w/o extension.",
         default="logfile",
+        gooey_options=GOOEY_OPTIONS,
+    )
+    group_vie_opt.add_argument(
+        "--symmetry",
+        type=str,
+        help="Symmetry of the microstructure if orientations are considered. Default is None.",
+        default=None,
         gooey_options=GOOEY_OPTIONS,
     )
     group_vie_opt.add_argument(
@@ -683,6 +684,10 @@ def call_main():
         "--noaxis", dest="noaxis", type=str2bool, choices=[True, False], gooey_options=GOOEY_OPTIONS
     )
     group_vie_opt.set_defaults(noaxis=False)
+    group_vie_opt.add_argument(
+        "--grey_values", dest="grey_values", type=str2bool, choices=[True, False], gooey_options=GOOEY_OPTIONS
+    )
+    group_vie_opt.set_defaults(grey_values=False)
 
     parser_smo = subparsers.add_parser("Smooth")
     parser_smo.set_defaults(func=main_smooth)

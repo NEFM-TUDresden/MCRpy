@@ -37,7 +37,9 @@ from mcrpy.src.Symmetry import symmetries, Symmetry
 
 
 @log.log_this
-def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstructure = None):
+def view_generic_pickle(
+    data: Dict, save_as: str = None, axis: bool = True, original_ms: Microstructure = None, grey_values: bool = False
+):
     if not isinstance(data, dict):
         raise NotImplementedError("Only pickles that contain dictionaries can be viewed.")
     if save_as is not None:
@@ -46,7 +48,7 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstruc
         assert save_as.endswith((".png", ".svg"))
     logging.info(f"Data contains keys {data.keys()}")
     if "scatter_data" in data and "raw_data" in data:
-        view_convergence_data(data, original_ms, save_as=save_as)
+        view_convergence_data(data, original_ms, grey_values=grey_values, save_as=save_as)
     else:
         for k, v in data.items():
             if k == "settings":
@@ -54,7 +56,9 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstruc
             # try:
             loader.load_plugins([f"mcrpy.descriptors.{k}"])
             visualize = descriptor_factory.get_visualization(k)
-            visualize(v, descriptor_type=k, save_as=f"{save_as[:-4]}_{k}.png" if save_as is not None else None)
+            visualize(
+                v, descriptor_type=k, axis=axis, save_as=f"{save_as[:-4]}_{k}.png" if save_as is not None else None
+            )
             # except Exception as e:
             #     logging.error(f'Error plotting {k}')
         logging.info("done visualizations")
@@ -62,7 +66,7 @@ def view_generic_pickle(data: Dict, save_as: str = None, original_ms: Microstruc
 
 @log.log_this
 def view_convergence_data(
-    convergence_data: dict[str, np.ndarray], original_ms: Microstructure = None, save_as: str = None
+    convergence_data: dict[str, np.ndarray], original_ms: Microstructure = None, grey_values: bool = False, save_as: str = None
 ):
     """View a convergence_data file."""
     from mcrpy.src.point_browser import PointBrowser
@@ -77,6 +81,7 @@ def view_convergence_data(
         line_datas,
         original_ms=original_ms,
         log_axis=True,
+        grey_values=grey_values,
         settings=settings,
         save_as=save_as,
     )
@@ -84,7 +89,12 @@ def view_convergence_data(
 
 @log.log_this
 def view_microstructure(
-    ms: Microstructure, save_as: str = None, axis: bool = True, cmap: str = "cividis", symmetry: Symmetry = None
+    ms: Microstructure,
+    save_as: str = None,
+    axis: bool = True,
+    cmap: str = "cividis",
+    symmetry: Symmetry = None,
+    grey_values: bool = False,
 ):
     import matplotlib
     import matplotlib.pyplot as plt
@@ -93,7 +103,7 @@ def view_microstructure(
         import tensorflow as tf
 
         if ms.has_phases:
-            x = ms.decode_phases()
+            x = ms.decode_phases() if not grey_values else ms.x.numpy()[0, :, :, 0]
         else:
             x = ms.ori.numpy()[0] if symmetry is None else symmetry.to_ipf(ms.ori)[0]
         # matplotlib.rcParams.update({
@@ -137,7 +147,9 @@ def view_microstructure(
             if axis:
                 plt.savefig(save_as, dpi=600, bbox_inches="tight", pad_inches=0)
             else:
-                plt.savefig(save_as, dpi=sizes[0])
+                plt.savefig(
+                    save_as, dpi=sizes[0] * 2
+                )  # supersample because ppt and other tools will blur pixel boundaries
         else:
             plt.show()
         plt.close()
@@ -179,14 +191,14 @@ def main(args):
             save_as = f"{save_as[:-7]}_D.png"
     elif args.infile.endswith(".npy"):
         save_as = f"{save_as[:-4]}_MS.png" if save_as else None
-        data = Microstructure.from_npy(args.infile)
+        data = Microstructure.from_npy(args.infile, ori_repr=args.ori_repr)
     else:
         raise NotImplementedError("Filetype not supported")
 
     if args.original_ms is not None:
         if not os.path.isfile(args.original_ms):
             raise ValueError("Provided original_ms {original_ms}, but file does not exist.")
-        args.original_ms = Microstructure.from_npy(args.original_ms)
+        args.original_ms = Microstructure.from_npy(args.original_ms, ori_repr=args.ori_repr)
 
     view(
         data,
@@ -195,6 +207,7 @@ def main(args):
         axis=not args.noaxis,
         cmap=args.cmap,
         symmetry=args.symmetry,
+        grey_values=args.grey_values,
     )
 
 
@@ -205,11 +218,12 @@ def view(
     axis: bool = True,
     cmap: str = "cividis",
     symmetry: Symmetry = None,
+    grey_values: bool = False,
 ):
     if isinstance(data, Microstructure):
-        view_microstructure(data, save_as, axis=axis, cmap=cmap, symmetry=symmetry)
+        view_microstructure(data, save_as, axis=axis, cmap=cmap, symmetry=symmetry, grey_values=grey_values)
     elif isinstance(data, dict):
-        view_generic_pickle(data, save_as, original_ms)
+        view_generic_pickle(data, save_as, original_ms=original_ms, axis=axis, grey_values=grey_values)
     else:
         raise NotImplementedError()
 
@@ -226,6 +240,7 @@ def cli_main():
         default=None,
     )
     parser.add_argument("--logfile_name", type=str, default="logfile")
+    parser.add_argument("--ori_repr", type=str, default="Rodrigues")
     parser.add_argument("--logging_level", type=int, default=logging.INFO)
     parser.add_argument("--logfile_date", dest="logfile_date", action="store_true")
     parser.set_defaults(logfile_date=False)
@@ -233,6 +248,8 @@ def cli_main():
     parser.set_defaults(savefig=False)
     parser.add_argument("--noaxis", dest="noaxis", action="store_true")
     parser.set_defaults(noaxis=False)
+    parser.add_argument("--grey_values", dest="grey_values", action="store_true")
+    parser.set_defaults(grey_values=False)
     args = parser.parse_args()
     main(args)
 

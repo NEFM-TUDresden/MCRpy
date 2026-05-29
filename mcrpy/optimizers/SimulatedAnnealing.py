@@ -26,7 +26,7 @@ import tensorflow as tf
 
 from mcrpy.optimizers.Optimizer import Optimizer
 from mcrpy.src import optimizer_factory
-from mcrpy.src.MutableMicrostructure import MutableMicrostructure
+from mcrpy.src.MutableMicrostructure import MutableMicrostructure, MutationError
 
 
 class SimulatedAnnealing(Optimizer):
@@ -141,7 +141,11 @@ class SimulatedAnnealing(Optimizer):
             if self.current_loss <= self.tolerance:
                 logging.info("reached tolerance")
                 break
-            self.step()
+            try:
+                self.step()
+            except MutationError:
+                logging.info("no more mutations possible")
+                break
         else:
             logging.info("reached number of iterations")
         return self.n_iter

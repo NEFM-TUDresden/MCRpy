@@ -34,8 +34,11 @@ class CommonSettings:
 @dataclass
 class DescriptorSettings:
     descriptor_types: List[str] = field(default_factory=lambda: ["Correlations"])
+    ori_repr: str = "Rodrigues"
+    n_shsh_terms: int = 9
     slice_mode: str = "average"
     nl_method: str = "relu"
+    full_3d: bool = False
     limit_to: int = 16
     threshold_steepness: float = 10.0
     grey_values: bool = False

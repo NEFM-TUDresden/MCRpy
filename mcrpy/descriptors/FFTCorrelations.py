@@ -30,6 +30,8 @@ tf.get_logger().setLevel(log.logging.ERROR)
 
 
 class FFTCorrelations(PhaseDescriptor):
+    """2-point auto-correlations calculated by FFT"""
+
     is_differentiable = True
 
     @staticmethod
@@ -77,7 +79,13 @@ class FFTCorrelations(PhaseDescriptor):
 
     @classmethod
     def visualize_subplot(
-        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+        cls,
+        descriptor_value: np.ndarray,
+        ax,
+        axis: bool = True,
+        descriptor_type: str = None,
+        mg_level: int = None,
+        n_phase: int = None,
     ):
         s2 = descriptor_value[:, :]
         height, width = s2.shape
@@ -85,15 +93,19 @@ class FFTCorrelations(PhaseDescriptor):
             raise NotImplementedError("Non-square FFTCorrelations not implemented")
         limit_to = height // 2 + 1
         ax.imshow(s2, cmap="cividis")
-        ax.set_title(f"S2: l={mg_level}, p={n_phase}")
-        ax.set_xlabel(r"$r_x$ in Px")
-        ax.set_ylabel(r"$r_y$ in Px")
-        xticks = [0, limit_to - 1, 2 * (limit_to - 1)]
-        yticks = [0, limit_to - 1, 2 * (limit_to - 1)]
-        ax.set_xticks(xticks)
-        ax.set_yticks(yticks)
-        ax.set_xticklabels([-limit_to + 1, 0, limit_to - 1])
-        ax.set_yticklabels(reversed([-limit_to + 1, 0, limit_to - 1]))
+        if axis:
+            ax.set_title(f"S2: l={mg_level}, p={n_phase}")
+            ax.set_xlabel(r"$r_x$ in Px")
+            ax.set_ylabel(r"$r_y$ in Px")
+            xticks = [0, limit_to - 1, 2 * (limit_to - 1)]
+            yticks = [0, limit_to - 1, 2 * (limit_to - 1)]
+            ax.set_xticks(xticks)
+            ax.set_yticks(yticks)
+            ax.set_xticklabels([-limit_to + 1, 0, limit_to - 1])
+            ax.set_yticklabels(reversed([-limit_to + 1, 0, limit_to - 1]))
+        else:
+            pass
+            # ax.set_axis_off()
 
 
 def register() -> None:

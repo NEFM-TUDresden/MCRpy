@@ -18,10 +18,12 @@ limitations under the License.
 
 from __future__ import annotations
 
-
 import argparse
 import contextlib
 import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 import logging
 import subprocess
 from typing import List, Tuple
@@ -58,7 +60,9 @@ def main(args: argparse.Namespace):
     settings.target_folder = fileutils.create_target_folder(settings)
     log.setup_logging(settings.target_folder, settings)
     microstructure_filename = fileutils.copy_ms_to_target(settings.target_folder, settings)[0]
-    microstructure = Microstructure.from_npy(microstructure_filename, use_multiphase=settings.use_multiphase)
+    microstructure = Microstructure.from_npy(
+        microstructure_filename, use_multiphase=settings.use_multiphase, ori_repr=settings.ori_repr
+    )
 
     # run matching
     characterization, convergence_data, last_frame = match(
@@ -91,9 +95,6 @@ def save_results(settings, microstructure_filename, characterization, convergenc
     save_last_state(last_frame, last_frame_out)
 
 
-# note: saving of last state is handled by save_last_state imported from mcrpy.reconstruct
-
-
 def prepare_saving(settings, microstructure_filename):
     info_file_additive = (
         ".".join(os.path.split(microstructure_filename)[-1].split(".")[:-1])
@@ -109,7 +110,9 @@ def extract_args(args):
     initial_microstructure = (
         None
         if args.initial_microstructure_file is None
-        else Microstructure.from_npy(args.initial_microstructure_file, use_multiphase=args.use_multiphase)
+        else Microstructure.from_npy(
+            args.initial_microstructure_file, use_multiphase=args.use_multiphase, ori_repr=args.ori_repr
+        )
     )
     del args.initial_microstructure_file
     add_dimension = args.add_dimension
@@ -145,10 +148,7 @@ def match(
 
     # run reconstruction
     convergence_data, last_frame = reconstruct(
-        characterization,
-        desired_shape,
-        settings=reconstruction_settings,
-        initial_microstructure=initial_microstructure,
+        characterization, desired_shape, settings=reconstruction_settings, initial_microstructure=initial_microstructure
     )
     return characterization, convergence_data, last_frame
 
@@ -235,6 +235,8 @@ def cli_main():
         "--acceptance_distribution", type=str, help="Acceptance distribution for YT", default="zero_tolerance"
     )
     parser.add_argument("--max_iter", type=int, help="Maximum number of iterations.", default=500)
+    parser.add_argument("--ori_repr", type=str, help="Orientation representation.", default="Rodrigues")
+    parser.add_argument("--n_shsh_terms", type=int, help="Number of expansion terms in SHSH.", default=9)
     parser.add_argument("--convergence_data_steps", type=int, help="Each x steps write data", default=10)
     parser.add_argument("--outfile_data_steps", type=int, help="Each x steps write data to disk", default=None)
     parser.add_argument("--add_dimension", type=int, help="Add dimension. Value in pixels or None", default=None)
@@ -259,6 +261,8 @@ def cli_main():
     parser.set_defaults(logfile_date=False)
     parser.add_argument("--non_periodic", dest="periodic", action="store_false")
     parser.set_defaults(periodic=True)
+    parser.add_argument("--full_3d", dest="full_3d", action="store_true")
+    parser.set_defaults(full_3d=False)
     parser.add_argument("--grey_values", dest="grey_values", action="store_true")
     parser.set_defaults(grey_values=False)
     parser.add_argument("--isotropic", dest="isotropic", action="store_true")

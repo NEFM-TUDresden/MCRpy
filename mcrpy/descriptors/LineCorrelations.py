@@ -28,6 +28,8 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class LineCorrelations(PhaseDescriptor):
+    """Correlations, but only along the cartesian directions, see Seibert et al, PAMM, 2023"""
+
     is_differentiable = True
 
     @staticmethod

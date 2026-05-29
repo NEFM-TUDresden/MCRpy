@@ -21,7 +21,6 @@ setup(
         "matplotlib>=3.3.4",
         "scipy>=1.6.2",
         "pyevtk",
-        "tqdm",
         # "gooey",
     ],
     extras_require={"animations": ["imageio-ffmpeg>=0.4.5"], "GUI": ["Gooey>=1.0.8.1"]},

@@ -31,6 +31,8 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class GramMatrices(PhaseDescriptor):
+    """Gram matrices of the feature maps of certain layers of VGG-19, see Seibert et al., Acta Materialia, 2021"""
+
     is_differentiable = True
 
     @staticmethod
@@ -69,7 +71,7 @@ class GramMatrices(PhaseDescriptor):
         and our 3D work
             Seibert et al., Descriptor-based reconstruction of three-
             dimensional microstructures through gradient-based optimization,
-            (submitted), 2021
+            Acta Materialia, 2021
         The difference of this code with respect to said sources is that here,
         periodic convolutions are used.  Also, phase to RGB encoding is
         regarded as a part of the descriptor."""

@@ -28,6 +28,8 @@ from mcrpy.descriptors.Descriptor import make_image_padder
 
 
 class Variation(PhaseDescriptor):
+    """Normalized variation, interpretable as phase boundary density, see Seibert et al, Acta Materialia, 2021 """
+
     is_differentiable = True
     default_weight = 100.0
 

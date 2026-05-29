@@ -38,7 +38,7 @@ descriptor_choices = [
 ]
 
 
-def register(descriptor_type: str, descriptor_class: Descriptor) -> None:
+def register(descriptor_type: str, descriptor_class: type) -> None:
     descriptor_classes[descriptor_type] = descriptor_class
 
 
@@ -84,9 +84,19 @@ def permute(
     isotropic: bool = False,
     mode: str = "average",
     arguments: Dict[str, Any] = None,
+    full_3d: bool = False,
 ) -> Callable:
     assert len(shape_3d) == 3
     assert arguments is not None
+
+    if full_3d:
+        assert shape_3d[0] == shape_3d[1] == shape_3d[2]
+        descriptor_function = create(descriptor_type, arguments=arguments)
+
+        def call_directly(ms: Microstructure):
+            return descriptor_function(ms.x)
+
+        return call_directly
 
     if shape_3d[0] == shape_3d[1] == shape_3d[2]:
         descriptor_functions = [create(descriptor_type, arguments=arguments)] * 3

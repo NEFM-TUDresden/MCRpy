@@ -26,6 +26,8 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class FFTCrossCorrelations(PhaseDescriptor):
+    """2-point cross-correlations calculated by FFT"""
+
     is_differentiable = True
 
     @staticmethod
@@ -40,18 +42,6 @@ class FFTCrossCorrelations(PhaseDescriptor):
         mask = mask.astype(bool)
         mask = tf.constant(mask, dtype=tf.bool)
         descriptor_shape = (limit_to * 2 - 1,) * 2
-
-        # @tf.function
-        # def compute_descriptor(microstructure: tf.Tensor) -> tf.Tensor:
-        #     microstructure = tf.reshape(microstructure, desired_shape_2d)
-        #     ms_fourier = tf.signal.fft2d(tf.cast(microstructure, tf.complex128))
-        #     ms_conj = tf.math.conj(ms_fourier)
-        #     fourier_coefficients = ms_fourier * ms_conj / tf.cast(tf.size(microstructure), tf.complex128)
-        #     real_coefficients = tf.signal.ifft2d(fourier_coefficients)
-        #     real_coefficients = tf.signal.fftshift(real_coefficients)
-        #     selected_components = tf.reshape(tf.boolean_mask(tf.cast(real_coefficients, tf.float64), mask), descriptor_shape)
-        #     return selected_components
-        # return compute_descriptor
 
         @tf.function
         def model(mg_input):

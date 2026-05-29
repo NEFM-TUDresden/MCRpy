@@ -29,7 +29,6 @@ from typing import List
 import numpy as np
 import scipy.ndimage as ndimg
 import tensorflow as tf
-from tqdm import tqdm
 
 with contextlib.suppress(Exception):
     tf.config.experimental.enable_tensor_float_32_execution(False)
@@ -45,6 +44,7 @@ from mcrpy.src.MutableMicrostructure import MutableMicrostructure
 from mcrpy.src.Symmetry import Symmetry
 from mcrpy.descriptors.OrientationDescriptor import OrientationDescriptor
 from mcrpy.descriptors.MultiPhaseDescriptor import MultiPhaseDescriptor
+from mcrpy.descriptors.MultiPhaseDescriptor3D import MultiPhaseDescriptor3D
 
 
 class DMCR:
@@ -73,6 +73,8 @@ class DMCR:
         batch_size: int = 1,
         symmetry: Symmetry = None,
         initial_microstructure: Microstructure = None,
+        ori_repr: str = None,
+        full_3d: bool = False,
         **kwargs,
     ):
         """Initializer for differentiable microstructure characterisation and reconstruction (DMCR).
@@ -124,6 +126,8 @@ class DMCR:
         self.greedy = greedy
         self.symmetry = symmetry
         self.batch_size = batch_size
+        self.ori_repr = ori_repr
+        self.full_3d = full_3d
         self.initial_microstructure = initial_microstructure
         self.minimal_resolution = minimal_resolution if minimal_resolution is not None else limit_to
         tf.keras.backend.set_floatx("float64")
@@ -166,6 +170,7 @@ class DMCR:
         # find which descriptors are MultiPhaseDescriptors
         self.descriptor_is_multiphase = [
             issubclass(descriptor_factory.descriptor_classes[descriptor_type], MultiPhaseDescriptor)
+            or issubclass(descriptor_factory.descriptor_classes[descriptor_type], MultiPhaseDescriptor3D)
             for descriptor_type in self.descriptor_types
         ]
 
@@ -188,6 +193,7 @@ class DMCR:
             "desired_shape_extended": self.desired_shape_extended,
             "n_phases": self.n_phases,
             "symmetry": self.symmetry,
+            "full_3d": self.full_3d,
             **self.kwargs,
         }
         if self.non_cubic_3d:
@@ -252,31 +258,43 @@ class DMCR:
         self.desired_shape_ms = input_shape
         self.validate_n_phases()
         if self.use_orientations:
-            self.desired_shape_extended = (1, *input_shape, 3)
+            ori_dim = None
+            if self.ori_repr == "UnnormalizedQuaternion":
+                ori_dim = 4
+            elif self.ori_repr == "Quaternion":
+                ori_dim = 4
+            elif self.ori_repr == "Rodrigues":
+                ori_dim = 3
+            else:
+                raise NotImplementedError
+            self.desired_shape_extended = (1, *input_shape, ori_dim)
         else:
             self.desired_shape_extended = (1, *input_shape, self.n_phases if self.use_multiphase else 1)
         self.non_cubic_3d = len(set(self.desired_shape_ms)) > 1 and len(self.desired_shape_ms) == 3
 
     def initialize_microstructure(self, previous_solution: Microstructure = None):
         """Initialize the ms by sampling randomly or upsampling previous solution."""
+        loc = 0.0 if self.use_orientations else 0.5
         ms_class = (
             MutableMicrostructure
             if optimizer_factory.optimizer_classes[self.optimizer_type].swaps_pixels
             else Microstructure
         )
         if previous_solution is None:
-            loc = 0.5
-            img = np.random.normal(loc=loc, scale=0.1, size=self.desired_shape_extended)
+            img = np.random.normal(loc=loc, scale=0.01, size=self.desired_shape_extended)  # smaller init scale
         else:
             img = self.resample_microstructure(previous_solution)
-        np.clip(img, 0, 1, out=img)
-        self.ms = ms_class(
-            img.reshape(self.desired_shape_extended),
-            use_multiphase=self.use_multiphase,
-            skip_encoding=True,
-            trainable=self.is_gradient_based,
-            symmetry=self.symmetry,
-        )
+        if self.use_orientations:
+            self.ms = ms_class(img[0], trainable=self.is_gradient_based, symmetry=self.symmetry, ori_repr=self.ori_repr)
+        else:
+            np.clip(img, 0, 1, out=img)
+            self.ms = ms_class(
+                img.reshape(self.desired_shape_extended),
+                use_multiphase=self.use_multiphase,
+                skip_encoding=True,
+                trainable=self.is_gradient_based,
+                symmetry=self.symmetry,
+            )
 
     def resample_microstructure(self, ms: Microstructure, zoom: float = None):
         """Upsample a MS."""
@@ -286,6 +304,12 @@ class DMCR:
             zoom_factor = tuple(des / cur for des, cur in zip(self.desired_shape_extended, ms.x_shape))
         return ndimg.zoom(ms.x.numpy(), zoom_factor, order=1)
 
+    def print_percentage_in_fz(self, ms: Microstructure, n_iter: int = None, check_trigger_restart: bool = False):
+        percentage_in_fz = tf.reduce_mean(tf.cast(ms.symmetry.in_fz(ms.ori), tf.float32)).numpy()
+        tf.print("Percentage in FZ: ", percentage_in_fz * 100, output_stream=sys.stdout)
+        if percentage_in_fz < 0.99 and check_trigger_restart:
+            raise FZError(n_iter if n_iter is not None else 0)
+
     def reconstruction_callback(
         self, n_iter: int, l: float, ms: Microstructure, force_save: int = False, safe_mode: bool = False
     ):
@@ -294,27 +318,32 @@ class DMCR:
 
         if n_iter % self.convergence_data_steps == 0 or force_save:
             n_digits = len(str(self.max_iter))
-            # tf.print(
-            #     f"Iteration {n_iter:>{n_digits}} of {self.max_iter}: {l:.6e}",
-            #     output_stream=sys.stdout,
-            # )
             tf.print(
                 f"\t{time.strftime('%H:%M:%S'):>8}  "
                 f"{n_iter:>{n_digits}}/{self.max_iter:<{n_digits}}  "
                 f"{l:>12.6e}",
                 output_stream=sys.stdout,
             )
-            self.convergence_data["scatter_data"].append((n_iter, l))
-            # self.convergence_data['raw_data'].append([self.resample_microstructure(ms, zoom=self.pool_size)])
-            self.convergence_data["raw_data"].append(copy.deepcopy(self.ms))
+            trigger_fzerror = safe_mode
+            self._append_to_convergence_data(n_iter, l, ms, trigger_fzerror)
         if n_iter % self.outfile_data_steps == 0 and (n_iter > 0 or self.outfile_data_steps < np.inf):
-            foldername = self.save_to if self.save_to is not None else ""
-            n_digits = len(str(self.max_iter))
-            filename = (
-                f"ms{self.information_additives}_level_{self.mg_level}_iteration_{str(n_iter).zfill(n_digits)}.npy"
-            )
-            outfile = os.path.join(foldername, filename)
-            ms.to_npy(outfile)
+            self._write_intermediate_result(n_iter, ms)
+
+    def _write_intermediate_result(self, n_iter, ms):
+        foldername = self.save_to if self.save_to is not None else ""
+        n_digits = len(str(self.max_iter))
+        filename = f"ms{self.information_additives}_level_{self.mg_level}_iteration_{str(n_iter).zfill(n_digits)}.npy"
+        outfile = os.path.join(foldername, filename)
+        ms.to_npy(outfile)
+
+    def _append_to_convergence_data(self, n_iter, l, ms, safe_mode):
+        if self.use_orientations:
+            self.print_percentage_in_fz(ms, n_iter=n_iter, check_trigger_restart=n_iter >= 100 and not safe_mode)
+        self.convergence_data["scatter_data"].append((n_iter, l))
+        self.convergence_data["raw_data"].append(copy.deepcopy(self.ms))
+        if self.use_orientations:
+            tmp = self.convergence_data["raw_data"][-1]
+            tmp.x.assign(self.ms.symmetry.project_to_fz(tmp.ori).x)
 
     @log.log_this
     @profile.maybe_profile("logdir")
@@ -381,7 +410,25 @@ class DMCR:
         tf.print(header, output_stream=sys.stdout)
 
     def _optimize(self, last_iter):
-        last_iter = self.opt.optimize(self.ms, restart_from_niter=last_iter)
+        n_reprojection = 0
+        for _ in range(100):
+            print("start optimization")
+            try:
+                last_iter = self.opt.optimize(self.ms, restart_from_niter=last_iter)
+            except FZError as fze:
+                last_iter = fze.iteration
+                n_reprojection += 1
+                if n_reprojection >= 50:
+                    print("max n_reprojections reached")
+                    break
+                print(f"reprojection number {n_reprojection}")
+                self.ms.x.assign(self.ms.symmetry.project_to_fz(self.ms.ori).x)
+                self.print_percentage_in_fz(self.ms)
+                continue
+            else:
+                break
+        else:
+            print("max number of optimization restarts reached")
         return last_iter
 
     def _assert_initialization(self):
@@ -429,6 +476,7 @@ class DMCR:
                 sparse=self.opt.is_sparse,
                 greedy=self.greedy,
                 batch_size=self.batch_size,
+                full_3d=self.full_3d,
             )
         )
 
@@ -458,6 +506,15 @@ class DMCR:
             "desired_shape_extended": self.desired_shape_extended,
             "descriptor_is_multiphase": self.descriptor_is_multiphase,
             "use_orientations": self.use_orientations,
+            "ori_repr": self.ori_repr,
+            "full_3d": self.full_3d,
             **self.kwargs,
         }
         self.loss = loss_factory.create(self.loss_type, non_cubic_3d=self.non_cubic_3d, arguments=loss_kwargs)
+
+
+class FZError(Exception):
+    def __init__(self, iteration: int) -> None:
+        super().__init__()
+        self.iteration = iteration
+

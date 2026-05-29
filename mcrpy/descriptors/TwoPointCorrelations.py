@@ -29,6 +29,8 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class TwoPointCorrelations(PhaseDescriptor):
+    """Two-point auto-correlations calculated by convolve-threshold-reduce, see Correlations """
+
     is_differentiable = True
 
     @staticmethod
@@ -167,7 +169,13 @@ class TwoPointCorrelations(PhaseDescriptor):
 
     @classmethod
     def visualize_subplot(
-        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+        cls,
+        descriptor_value: np.ndarray,
+        ax,
+        axis: bool = True,
+        descriptor_type: str = None,
+        mg_level: int = None,
+        n_phase: int = None,
     ):
         x_max = descriptor_value.shape
         limit_to = np.round(0.5 + np.sqrt(0.5 * x_max - 0.25), decimals=0).astype(int)

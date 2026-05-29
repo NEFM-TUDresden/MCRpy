@@ -23,6 +23,8 @@ import contextlib
 import logging
 import pickle
 import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 from mcrpy.src import log
@@ -41,6 +43,7 @@ from mcrpy.src.Microstructure import Microstructure
 from mcrpy.src.Settings import CharacterizationSettings
 from mcrpy.src.Symmetry import Symmetry, symmetries
 from mcrpy.src.descriptor_factory import descriptor_choices, descriptor_classes
+from mcrpy.descriptors.OrientationDescriptor import OrientationDescriptor
 
 
 def convert(x: Any) -> Union[np.ndarray, Tuple[np.ndarray]]:
@@ -86,6 +89,7 @@ def make_descriptor_functions(
                 settings.n_phases,
                 isotropic=settings.isotropic,
                 mode=settings.slice_mode,
+                full_3d=settings.full_3d,
                 arguments=vars(settings),
             )
             for descriptor_type in settings.descriptor_types
@@ -116,7 +120,9 @@ def main(args):
     settings.target_folder = fileutils.create_target_folder(settings)
     microstructure_filenames = fileutils.copy_ms_to_target(settings.target_folder, settings)
     microstructures = [
-        Microstructure.from_npy(microstructure_filename, use_multiphase=settings.use_multiphase, trainable=False)
+        Microstructure.from_npy(
+            microstructure_filename, use_multiphase=settings.use_multiphase, trainable=False, ori_repr=settings.ori_repr
+        )
         for microstructure_filename in microstructure_filenames
     ]
 
@@ -192,6 +198,17 @@ def characterize(
     # load modules
     loader.load_plugins([f"mcrpy.descriptors.{descriptor_type}" for descriptor_type in settings.descriptor_types])
 
+    # check if orientation ok
+    orientation_descriptors = [
+        issubclass(descriptor_classes[descriptor_type], OrientationDescriptor)
+        for descriptor_type in settings.descriptor_types
+    ]
+    if any(orientation_descriptors):
+        assert all(orientation_descriptors)
+        assert microstructures[0].has_orientations
+    else:
+        assert microstructures[0].has_phases
+
     # make descriptor functions
     descriptors = make_descriptor_functions(microstructures[0].spatial_shape, settings)
 
@@ -238,6 +255,8 @@ def cli_main():
         "--gram_weights_filename", type=str, help="Gram weigths filename wo path.", default="vgg19_normalized.pkl"
     )
     parser.add_argument("--slice_mode", type=str, help="Average or sample slices?", default="average")
+    parser.add_argument("--ori_repr", type=str, help="Orientation representation.", default="Rodrigues")
+    parser.add_argument("--n_shsh_terms", type=int, help="Number of expansion terms in SHSH.", default=9)
     parser.add_argument(
         "--information", type=str, help="Information that is added to files that are written.", default=None
     )
@@ -251,6 +270,8 @@ def cli_main():
     parser.add_argument("--logging_level", type=int, help="Logging level.", default=logging.INFO)
     parser.add_argument("--non_periodic", dest="periodic", action="store_false")
     parser.set_defaults(periodic=True)
+    parser.add_argument("--full_3d", dest="full_3d", action="store_true")
+    parser.set_defaults(full_3d=False)
     parser.add_argument("--grey_values", dest="grey_values", action="store_true")
     parser.set_defaults(grey_values=False)
     parser.add_argument("--isotropic", dest="isotropic", action="store_true")

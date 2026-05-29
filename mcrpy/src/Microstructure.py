@@ -12,6 +12,8 @@ from contextlib import suppress
 
 # tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+from mcrpy.orientation import Orientation, Rodrigues, Euler
+from mcrpy.orientation.Classes import classes
 from mcrpy.src.IndicatorFunction import IndicatorFunction
 from mcrpy.src.Symmetry import Symmetry, Cubic
 
@@ -23,11 +25,12 @@ with suppress(Exception):
 
 
 class Microstructure:
+
     def __init__(
         self,
         array: np.ndarray,
         use_multiphase=False,
-        ori_repr: type = None,
+        ori_repr: str = "Rodrigues",
         symmetry: Symmetry = Cubic,
         skip_encoding: bool = False,
         trainable: bool = True,
@@ -51,6 +54,8 @@ class Microstructure:
         know what you are doing! Finally, if you will never need to compute gradients
         with respect to the microstructure, you can set trainable to False.
         """
+        if isinstance(ori_repr, str):
+            ori_repr = classes[ori_repr]
         if -0.0001 < np.min(array) < 0:
             array[array < 0] = 0
         if 1.0 < np.max(array) < 1.0001:
@@ -69,7 +74,7 @@ class Microstructure:
             assert len(x_np.shape) in {3, 4}
             self.is_3D = len(x_np.shape) == 4
             self.has_orientations = False
-        elif array.shape[-1] == 3 and not use_multiphase:
+        elif array.shape[-1] in {3, 4} and not use_multiphase:
             assert len(array.shape) in {3, 4}
             logging.info("Assume orientation information")
             self.phase_numbers = [0]
@@ -182,7 +187,7 @@ class Microstructure:
         return ms
 
     @classmethod
-    def from_npy(cls, filename: str, use_multiphase: bool = False, trainable: bool = True, ori_repr: type = None):
+    def from_npy(cls, filename: str, use_multiphase: bool = False, trainable: bool = True, ori_repr: str = "Rodrigues"):
         """Load a Microstructure from a numpy-array stored in a npy-file by loading the array
         and calling the constructor on it. The arguments use_multiphase and trainable are
         passed to the Microstructure constructor, so please refer to the class documentation
@@ -233,7 +238,22 @@ class Microstructure:
         if self.has_phases:
             cellData = {"phase_ids": self.decode_phases(raw=True)}
         else:
-            raise NotImplementedError()
+            euler = self.ori.astype(Euler).x.numpy()[0]
+            rod = self.ori.astype(Rodrigues).x.numpy()[0]
+            ipf = self.symmetry.to_ipf(self.ori).numpy()[0]
+            cellData = {
+                "phi_1": euler[..., 0],
+                "PHI": euler[..., 1],
+                "phi_2": euler[..., 2],
+                "rho_1": rod[..., 0],
+                "rho_2": rod[..., 1],
+                "rho_3": rod[..., 2],
+                "ipf": (ipf[..., 0], ipf[..., 1], ipf[..., 2]),
+            }
+            cellData = {
+                k: np.ascontiguousarray(v) if isinstance(v, np.ndarray) else tuple(np.ascontiguousarray(t) for t in v)
+                for k, v in cellData.items()
+            }
 
         gridToVTK(filename[:-4], coords_x, coords_y, coords_z, cellData=cellData)
 

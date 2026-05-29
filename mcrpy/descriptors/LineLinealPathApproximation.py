@@ -29,6 +29,8 @@ from mcrpy.descriptors.PhaseDescriptor import PhaseDescriptor
 
 
 class LineLinealPathApproximation(PhaseDescriptor):
+    """LinealPathApproximation, but only along the cartesian directions, see Seibert et al, PAMM, 2023"""
+
     is_differentiable = True
 
     @staticmethod
@@ -133,7 +135,13 @@ class LineLinealPathApproximation(PhaseDescriptor):
 
     @classmethod
     def visualize_subplot(
-        cls, descriptor_value: np.ndarray, ax, descriptor_type: str = None, mg_level: int = None, n_phase: int = None
+        cls,
+        descriptor_value: np.ndarray,
+        ax,
+        axis: bool = True,
+        descriptor_type: str = None,
+        mg_level: int = None,
+        n_phase: int = None,
     ):
         import matplotlib.pyplot as plt
 
